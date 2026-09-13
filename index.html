@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ESP32 LED Control Dashboard</title>
+  <meta name="description" content="MQTT dashboard to control 4 LEDs on an ESP32 via HiveMQ Cloud. Shows real-time ESP32 connection status and activity logs." />
+
+  <!-- Tailwind CSS v4 CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+
+  <!-- MQTT.js CDN -->
+  <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+
+  <!-- Google Fonts: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style type="text/tailwindcss">
+    @theme {
+      --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+      --color-brand-50: oklch(0.97 0.02 260);
+      --color-brand-100: oklch(0.93 0.04 260);
+      --color-brand-200: oklch(0.87 0.07 260);
+      --color-brand-300: oklch(0.78 0.11 260);
+      --color-brand-400: oklch(0.68 0.16 260);
+      --color-brand-500: oklch(0.58 0.20 260);
+      --color-brand-600: oklch(0.50 0.20 260);
+      --color-brand-700: oklch(0.43 0.18 260);
+      --color-surface-0: oklch(0.11 0.01 260);
+      --color-surface-1: oklch(0.15 0.015 260);
+      --color-surface-2: oklch(0.19 0.02 260);
+      --color-surface-3: oklch(0.23 0.02 260);
+      --color-surface-4: oklch(0.28 0.02 260);
+      --color-led-on: oklch(0.72 0.19 155);
+      --color-led-on-glow: oklch(0.72 0.19 155 / 0.3);
+      --color-led-off: oklch(0.35 0.01 260);
+      --color-danger: oklch(0.65 0.22 25);
+      --color-warning: oklch(0.78 0.16 75);
+      --color-esp-online: oklch(0.72 0.19 155);
+      --color-esp-offline: oklch(0.65 0.22 25);
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--color-surface-1); }
+    ::-webkit-scrollbar-thumb { background: var(--color-surface-4); border-radius: 999px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--color-brand-500); }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 15px 2px var(--color-led-on-glow), inset 0 1px 0 rgba(255,255,255,0.1); }
+      50% { box-shadow: 0 0 30px 6px var(--color-led-on-glow), inset 0 1px 0 rgba(255,255,255,0.1); }
+    }
+
+    @keyframes status-pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    @keyframes slide-in {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fade-in-up {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .animate-fade-in-up {
+      animation: fade-in-up 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .log-entry {
+      animation: slide-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
+    }
+
+    .led-card {
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .led-card:hover {
+      transform: translateY(-2px);
+    }
+
+    .led-card:active {
+      transform: scale(0.97);
+    }
+
+    .led-card.is-on {
+      animation: pulse-glow 2.5s ease-in-out infinite;
+    }
+
+    .status-dot-pulse {
+      animation: status-pulse 1.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+
+<body class="min-h-screen bg-surface-0 text-white font-sans antialiased selection:bg-brand-500/30">
+
+  <!-- Background gradient blobs -->
+  <div class="fixed inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+    <div class="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-brand-600/[0.07] blur-[120px]"></div>
+    <div class="absolute -bottom-40 -right-40 w-[500px] h-[500px] rounded-full bg-brand-400/[0.05] blur-[100px]"></div>
+  </div>
+
+  <div class="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
+
+    <!-- ========== HEADER ========== -->
+    <header class="animate-fade-in-up mb-8 sm:mb-10">
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-3 mb-2">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-400 to-brand-600 flex items-center justify-center shadow-lg shadow-brand-500/20">
+              <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+            <h1 class="text-2xl sm:text-3xl font-bold tracking-tight bg-gradient-to-r from-white to-white/60 bg-clip-text text-transparent">
+              LED Control
+            </h1>
+          </div>
+          <p class="text-sm text-white/40 font-medium pl-[52px] -mt-1">ESP32 • MQTT • 4-Channel LED Test</p>
+        </div>
+
+        <!-- Broker Connection Status -->
+        <div id="broker-badge" class="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-surface-2/80 border border-white/[0.06] backdrop-blur-sm transition-all duration-500 self-start sm:self-auto">
+          <span id="broker-dot" class="relative flex h-2.5 w-2.5">
+            <span class="absolute inline-flex h-full w-full rounded-full bg-warning opacity-75 status-dot-pulse"></span>
+            <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-warning"></span>
+          </span>
+          <span id="broker-text" class="text-sm font-medium text-white/70">Connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ========== ESP32 DEVICE STATUS ========== -->
+    <section class="animate-fade-in-up mb-6 sm:mb-8" style="animation-delay: 0.05s" aria-label="ESP32 Device Status">
+      <div id="esp32-status-card" class="flex items-center gap-4 px-5 py-4 rounded-2xl bg-surface-1/80 border border-white/[0.06] transition-all duration-500">
+        <!-- MCU Icon -->
+        <div id="esp32-icon-wrap" class="w-10 h-10 rounded-xl bg-surface-3/60 border border-white/[0.06] flex items-center justify-center transition-all duration-500">
+          <svg class="w-5 h-5 text-white/20 transition-colors duration-500" id="esp32-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M4.5 12H3m18 0h-1.5m-13.5 3.75H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m0 15V21m-9-1.5h9a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0017.25 4.5h-9A2.25 2.25 0 006 6.75v10.5A2.25 2.25 0 008.25 19.5z" />
+          </svg>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-2.5">
+            <h2 class="text-sm font-bold text-white/70">ESP32 Device</h2>
+            <span id="esp32-status-pill" class="text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-surface-3 text-white/30 border border-white/[0.06] transition-all duration-500">
+              Waiting
+            </span>
+          </div>
+          <p id="esp32-status-sub" class="text-xs text-white/25 mt-0.5 font-medium transition-colors duration-500">Waiting for status from topic <span class="font-mono text-brand-400/50">esp32/status</span></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== LED GRID ========== -->
+    <section class="mb-10 sm:mb-14" aria-label="LED Controls">
+      <div id="led-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5">
+        <!-- Cards injected by JS -->
+      </div>
+    </section>
+
+    <!-- ========== ACTIVITY LOG ========== -->
+    <section class="animate-fade-in-up" style="animation-delay: 0.3s" aria-label="Activity Log">
+      <button
+        id="log-toggle"
+        type="button"
+        class="w-full flex items-center justify-between px-5 py-3.5 rounded-2xl bg-surface-1/80 border border-white/[0.06] hover:border-white/[0.1] transition-all duration-300 group cursor-pointer"
+      >
+        <div class="flex items-center gap-3">
+          <svg class="w-4 h-4 text-white/30 group-hover:text-brand-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span class="text-sm font-semibold text-white/50 group-hover:text-white/70 transition-colors">Activity Log</span>
+          <span id="log-count" class="text-[11px] font-bold text-white/30 bg-surface-3 px-2 py-0.5 rounded-full min-w-[24px] text-center">0</span>
+        </div>
+        <svg id="log-chevron" class="w-4 h-4 text-white/20 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      <div id="log-panel" class="hidden mt-2 rounded-2xl bg-surface-1/60 border border-white/[0.06] overflow-hidden backdrop-blur-sm">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-white/[0.04]">
+          <span class="text-xs font-semibold text-white/30 uppercase tracking-wider">Recent Activity</span>
+          <button id="log-clear" type="button" class="text-xs font-medium text-white/25 hover:text-danger transition-colors cursor-pointer">Clear</button>
+        </div>
+        <div id="log-list" class="max-h-72 overflow-y-auto px-5 py-3 space-y-1 font-mono text-[13px]">
+          <p class="text-white/20 text-center py-6 text-xs">No activity yet</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer class="mt-12 text-center">
+      <p class="text-xs text-white/15 font-medium">ESP32 LoRa Valve Control Project &middot; HiveMQ Cloud</p>
+    </footer>
+  </div>
+
+  <!-- ========== JAVASCRIPT ========== -->
+  <script>
+    // ============================================================
+    // CONFIGURATION
+    // ============================================================
+
+    const CONFIG = {
+      broker: {
+        host: '174ca6aa415744a08b852a7c5bfdc408.s1.eu.hivemq.cloud',
+        port: 8884,
+        username: 'Ohmprakash',
+        password: '12345678',
+      },
+      commandTopic: 'esp32/relay/set',
+      statusTopic: 'esp32/status',
+      leds: [
+        { id: 1, label: 'LED 1', gpio: 'G25', onPayload: 'LED1_ON', offPayload: 'LED1_OFF' },
+        { id: 2, label: 'LED 2', gpio: 'G33', onPayload: 'LED2_ON', offPayload: 'LED2_OFF' },
+        { id: 3, label: 'LED 3', gpio: 'G32', onPayload: 'LED3_ON', offPayload: 'LED3_OFF' },
+        { id: 4, label: 'LED 4', gpio: 'G26', onPayload: 'LED4_ON', offPayload: 'LED4_OFF' },
+      ],
+    };
+
+    // ============================================================
+    // STATE
+    // ============================================================
+
+    const state = {
+      brokerConnected: false,
+      esp32Online: false,
+      leds: { 1: false, 2: false, 3: false, 4: false },
+      logEntries: [],
+      logOpen: false,
+    };
+
+    let mqttClient = null;
+
+    // ============================================================
+    // DOM REFERENCES
+    // ============================================================
+
+    const dom = {
+      grid: document.getElementById('led-grid'),
+      brokerDot: document.getElementById('broker-dot'),
+      brokerText: document.getElementById('broker-text'),
+      brokerBadge: document.getElementById('broker-badge'),
+      esp32Card: document.getElementById('esp32-status-card'),
+      esp32Icon: document.getElementById('esp32-icon'),
+      esp32IconWrap: document.getElementById('esp32-icon-wrap'),
+      esp32Pill: document.getElementById('esp32-status-pill'),
+      esp32Sub: document.getElementById('esp32-status-sub'),
+      logToggle: document.getElementById('log-toggle'),
+      logPanel: document.getElementById('log-panel'),
+      logList: document.getElementById('log-list'),
+      logCount: document.getElementById('log-count'),
+      logClear: document.getElementById('log-clear'),
+      logChevron: document.getElementById('log-chevron'),
+    };
+
+    // ============================================================
+    // UI: BUILD LED CARDS
+    // ============================================================
+
+    function buildLedCards() {
+      dom.grid.innerHTML = '';
+      CONFIG.leds.forEach((led, index) => {
+        const card = document.createElement('button');
+        card.type = 'button';
+        card.id = `led-card-${led.id}`;
+        card.className = 'led-card animate-fade-in-up';
+        card.style.animationDelay = `${0.1 + index * 0.08}s`;
+        card.setAttribute('aria-label', `Toggle ${led.label}`);
+        card.setAttribute('aria-pressed', 'false');
+        card.innerHTML = buildCardHTML(led, false);
+        card.addEventListener('click', () => toggleLed(led.id));
+        dom.grid.appendChild(card);
+      });
+    }
+
+    function buildCardHTML(led, isOn) {
+      const stateLabel = isOn ? 'ON' : 'OFF';
+      const stateColor = isOn ? 'text-led-on' : 'text-white/25';
+      const iconBg = isOn ? 'bg-led-on/15 border-led-on/30' : 'bg-surface-3/60 border-white/[0.06]';
+      const iconColor = isOn ? 'text-led-on' : 'text-white/20';
+      const cardBg = isOn
+        ? 'bg-gradient-to-br from-surface-2 to-surface-1 border-led-on/20'
+        : 'bg-surface-1/80 border-white/[0.06] hover:border-white/[0.1]';
+
+      // LED bulb SVG icon
+      const ledSvg = isOn
+        ? `<svg class="w-5 h-5 ${iconColor} transition-colors duration-300" fill="currentColor" viewBox="0 0 24 24">
+             <path d="M9 21c0 .5.4 1 1 1h4c.6 0 1-.5 1-1v-1H9v1zm3-19C8.1 2 5 5.1 5 9c0 2.4 1.2 4.5 3 5.7V17c0 .5.4 1 1 1h6c.6 0 1-.5 1-1v-2.3c1.8-1.3 3-3.4 3-5.7 0-3.9-3.1-7-7-7z"/>
+           </svg>`
+        : `<svg class="w-5 h-5 ${iconColor} transition-colors duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+             <path stroke-linecap="round" stroke-linejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 001.5-.189m-1.5.189a6.01 6.01 0 01-1.5-.189m3.75 7.478a12.06 12.06 0 01-4.5 0m3.75 2.383a14.406 14.406 0 01-3 0M14.25 18v-.192c0-.983.658-1.823 1.508-2.316a7.5 7.5 0 10-7.517 0c.85.493 1.509 1.333 1.509 2.316V18" />
+           </svg>`;
+
+      return `
+        <div class="relative rounded-2xl ${cardBg} border p-5 sm:p-6 text-left transition-all duration-300 cursor-pointer">
+          <div class="flex items-start justify-between mb-4">
+            <div class="w-11 h-11 rounded-xl ${iconBg} border flex items-center justify-center transition-all duration-300">
+              ${ledSvg}
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] font-bold uppercase tracking-widest ${stateColor} transition-colors duration-300">${stateLabel}</span>
+              <div class="w-10 h-[22px] rounded-full ${isOn ? 'bg-led-on/30' : 'bg-surface-3'} relative transition-colors duration-300">
+                <div class="absolute top-[3px] ${isOn ? 'left-[21px]' : 'left-[3px]'} w-4 h-4 rounded-full ${isOn ? 'bg-led-on shadow-lg shadow-led-on/40' : 'bg-surface-4'} transition-all duration-300"></div>
+              </div>
+            </div>
+          </div>
+          <h3 class="text-base font-bold ${isOn ? 'text-white' : 'text-white/50'} mb-1 transition-colors duration-300">${led.label}</h3>
+          <p class="text-xs ${isOn ? 'text-white/40' : 'text-white/20'} font-medium font-mono transition-colors duration-300">${led.gpio} &middot; ${isOn ? led.onPayload : led.offPayload}</p>
+        </div>
+      `;
+    }
+
+    function updateLedCard(ledId) {
+      const led = CONFIG.leds.find(l => l.id === ledId);
+      const card = document.getElementById(`led-card-${ledId}`);
+      const isOn = state.leds[ledId];
+      card.innerHTML = buildCardHTML(led, isOn);
+      card.setAttribute('aria-pressed', String(isOn));
+      card.classList.toggle('is-on', isOn);
+    }
+
+    // ============================================================
+    // UI: BROKER CONNECTION STATUS
+    // ============================================================
+
+    function updateBrokerStatus(status) {
+      const dotInner = dom.brokerDot.querySelector('span:last-child');
+      const dotPulse = dom.brokerDot.querySelector('span:first-child');
+
+      switch (status) {
+        case 'connected':
+          dotInner.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-led-on';
+          dotPulse.className = 'absolute inline-flex h-full w-full rounded-full bg-led-on opacity-75 status-dot-pulse';
+          dom.brokerText.textContent = 'Broker Connected';
+          dom.brokerText.className = 'text-sm font-medium text-led-on/80';
+          break;
+        case 'disconnected':
+          dotInner.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-danger';
+          dotPulse.className = 'absolute inline-flex h-full w-full rounded-full bg-danger opacity-75';
+          dom.brokerText.textContent = 'Disconnected';
+          dom.brokerText.className = 'text-sm font-medium text-danger/80';
+          break;
+        default:
+          dotInner.className = 'relative inline-flex rounded-full h-2.5 w-2.5 bg-warning';
+          dotPulse.className = 'absolute inline-flex h-full w-full rounded-full bg-warning opacity-75 status-dot-pulse';
+          dom.brokerText.textContent = 'Connecting…';
+          dom.brokerText.className = 'text-sm font-medium text-white/70';
+          break;
+      }
+    }
+
+    // ============================================================
+    // UI: ESP32 DEVICE STATUS
+    // ============================================================
+
+    function updateESP32Status(isOnline) {
+      state.esp32Online = isOnline;
+
+      if (isOnline) {
+        dom.esp32Card.className = 'flex items-center gap-4 px-5 py-4 rounded-2xl bg-surface-1/80 border border-esp-online/20 transition-all duration-500';
+        dom.esp32IconWrap.className = 'w-10 h-10 rounded-xl bg-esp-online/10 border border-esp-online/25 flex items-center justify-center transition-all duration-500';
+        dom.esp32Icon.className = 'w-5 h-5 text-esp-online transition-colors duration-500';
+        dom.esp32Pill.textContent = 'Online';
+        dom.esp32Pill.className = 'text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-esp-online/15 text-esp-online border border-esp-online/25 transition-all duration-500';
+        dom.esp32Sub.innerHTML = 'ESP32 is connected to HiveMQ Cloud and ready to receive commands';
+      } else {
+        dom.esp32Card.className = 'flex items-center gap-4 px-5 py-4 rounded-2xl bg-surface-1/80 border border-esp-offline/15 transition-all duration-500';
+        dom.esp32IconWrap.className = 'w-10 h-10 rounded-xl bg-esp-offline/10 border border-esp-offline/20 flex items-center justify-center transition-all duration-500';
+        dom.esp32Icon.className = 'w-5 h-5 text-esp-offline transition-colors duration-500';
+        dom.esp32Pill.textContent = 'Offline';
+        dom.esp32Pill.className = 'text-[10px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-esp-offline/15 text-esp-offline border border-esp-offline/20 transition-all duration-500';
+        dom.esp32Sub.innerHTML = 'ESP32 is not connected &mdash; check power and Wi-Fi';
+      }
+    }
+
+    // ============================================================
+    // UI: ACTIVITY LOG
+    // ============================================================
+
+    function addLogEntry(message, type = 'info') {
+      const now = new Date();
+      const timestamp = now.toLocaleTimeString('en-US', { hour12: true, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const datestamp = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+      state.logEntries.unshift({ message, type, timestamp, datestamp });
+      if (state.logEntries.length > 150) state.logEntries.pop();
+      renderLog();
+    }
+
+    function renderLog() {
+      dom.logCount.textContent = state.logEntries.length;
+
+      if (state.logEntries.length === 0) {
+        dom.logList.innerHTML = '<p class="text-white/20 text-center py-6 text-xs">No activity yet</p>';
+        return;
+      }
+
+      dom.logList.innerHTML = state.logEntries.map((entry, i) => {
+        const colorMap = { info: 'text-brand-400', success: 'text-led-on', error: 'text-danger', warn: 'text-warning', device: 'text-brand-300' };
+        const dotColor = colorMap[entry.type] || colorMap.info;
+        return `
+          <div class="log-entry flex items-start gap-3 py-1.5 ${i > 0 ? 'border-t border-white/[0.03]' : ''}">
+            <span class="text-white/15 text-[11px] mt-0.5 shrink-0 tabular-nums whitespace-nowrap">${entry.timestamp}</span>
+            <span class="w-1.5 h-1.5 rounded-full ${dotColor} mt-1.5 shrink-0"></span>
+            <span class="text-white/50 text-[12px] leading-relaxed">${entry.message}</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleLog() {
+      state.logOpen = !state.logOpen;
+      dom.logPanel.classList.toggle('hidden', !state.logOpen);
+      dom.logChevron.style.transform = state.logOpen ? 'rotate(180deg)' : 'rotate(0deg)';
+    }
+
+    // ============================================================
+    // MQTT: CONNECT
+    // ============================================================
+
+    function connectMQTT() {
+      const url = `wss://${CONFIG.broker.host}:${CONFIG.broker.port}/mqtt`;
+
+      updateBrokerStatus('connecting');
+      addLogEntry(`Connecting to broker…`, 'info');
+
+      mqttClient = mqtt.connect(url, {
+        username: CONFIG.broker.username,
+        password: CONFIG.broker.password,
+        protocol: 'wss',
+        reconnectPeriod: 5000,
+        connectTimeout: 10000,
+        clean: true,
+      });
+
+      mqttClient.on('connect', () => {
+        state.brokerConnected = true;
+        updateBrokerStatus('connected');
+        addLogEntry('Connected to HiveMQ Cloud broker', 'success');
+
+        // Subscribe to command topic (to see echoed messages)
+        mqttClient.subscribe(CONFIG.commandTopic, { qos: 1 }, (err) => {
+          if (!err) addLogEntry(`Subscribed to <span class="text-brand-300">${CONFIG.commandTopic}</span>`, 'info');
+        });
+
+        // Subscribe to ESP32 status topic (retained)
+        mqttClient.subscribe(CONFIG.statusTopic, { qos: 1 }, (err) => {
+          if (!err) addLogEntry(`Subscribed to <span class="text-brand-300">${CONFIG.statusTopic}</span>`, 'info');
+        });
+      });
+
+      mqttClient.on('reconnect', () => {
+        updateBrokerStatus('connecting');
+        addLogEntry('Reconnecting to broker…', 'warn');
+      });
+
+      mqttClient.on('disconnect', () => {
+        state.brokerConnected = false;
+        updateBrokerStatus('disconnected');
+        addLogEntry('Disconnected from broker', 'error');
+      });
+
+      mqttClient.on('offline', () => {
+        state.brokerConnected = false;
+        updateBrokerStatus('disconnected');
+      });
+
+      mqttClient.on('error', (err) => {
+        addLogEntry(`Broker error: ${err.message}`, 'error');
+      });
+
+      mqttClient.on('message', (topic, message) => {
+        const payload = message.toString();
+
+        // ---- ESP32 Status ----
+        if (topic === CONFIG.statusTopic) {
+          const isOnline = payload === 'online';
+          updateESP32Status(isOnline);
+          addLogEntry(
+            `ESP32 is now <span class="font-semibold ${isOnline ? 'text-esp-online' : 'text-esp-offline'}">${payload.toUpperCase()}</span>`,
+            isOnline ? 'device' : 'error'
+          );
+          return;
+        }
+
+        // ---- Command echo (LED state sync) ----
+        if (topic === CONFIG.commandTopic) {
+          addLogEntry(`Received <span class="text-white/70 font-semibold">${payload}</span> on <span class="text-brand-300">${topic}</span>`, 'info');
+
+          CONFIG.leds.forEach((led) => {
+            if (payload === led.onPayload) {
+              state.leds[led.id] = true;
+              updateLedCard(led.id);
+            } else if (payload === led.offPayload) {
+              state.leds[led.id] = false;
+              updateLedCard(led.id);
+            }
+          });
+        }
+      });
+    }
+
+    // ============================================================
+    // MQTT: TOGGLE LED
+    // ============================================================
+
+    function toggleLed(ledId) {
+      const led = CONFIG.leds.find(l => l.id === ledId);
+      if (!led) return;
+
+      const newState = !state.leds[ledId];
+      const payload = newState ? led.onPayload : led.offPayload;
+
+      // Optimistic local update
+      state.leds[ledId] = newState;
+      updateLedCard(ledId);
+
+      if (state.brokerConnected && mqttClient) {
+        mqttClient.publish(CONFIG.commandTopic, payload, { qos: 1 }, (err) => {
+          if (err) {
+            addLogEntry(`Failed to publish: ${err.message}`, 'error');
+            state.leds[ledId] = !newState;
+            updateLedCard(ledId);
+          } else {
+            addLogEntry(
+              `Sent <span class="font-semibold ${newState ? 'text-led-on' : 'text-white/60'}">${payload}</span> → <span class="text-brand-300">${CONFIG.commandTopic}</span>`,
+              newState ? 'success' : 'info'
+            );
+          }
+        });
+      } else {
+        addLogEntry('Cannot send — broker not connected', 'error');
+        state.leds[ledId] = !newState;
+        updateLedCard(ledId);
+      }
+    }
+
+    // ============================================================
+    // EVENT LISTENERS
+    // ============================================================
+
+    dom.logToggle.addEventListener('click', toggleLog);
+
+    dom.logClear.addEventListener('click', (e) => {
+      e.stopPropagation();
+      state.logEntries = [];
+      renderLog();
+    });
+
+    // ============================================================
+    // INITIALIZE
+    // ============================================================
+
+    buildLedCards();
+    connectMQTT();
+  </script>
+</body>
+</html>

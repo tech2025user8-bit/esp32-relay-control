@@ -1,1703 +1,1651 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SPD FARM AG - Smart Irrigation Control System</title>
-  <!-- Paho MQTT Library via CDN -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
-  <!-- Google Fonts & FontAwesome Icons -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-
-  <style>
-    :root {
-      --bg-color: #f3f4f6;
-      --card-bg: #ffffff;
-      --primary-green: #0d6efd;
-      --header-bg-start: #064e3b;
-      --header-bg-end: #047857;
-      --accent-green: #10b981;
-      --text-main: #1f2937;
-      --text-muted: #6b7280;
-      --border-color: #e5e7eb;
-      --status-off: #6c757d;
-      --status-on: #10b981;
-      --blue-card-start: #0284c7;
-      --blue-card-end: #0369a1;
-      --gold-bg: #fffbe2;
-      --gold-border: #fef08a;
-      --gold-text: #854d0e;
-    }
-
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Inter', sans-serif;
-      -webkit-tap-highlight-color: transparent;
-    }
-
-    body {
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-    }
-
-    .app-container {
-      width: 100%;
-      max-width: 720px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* Top Banner Header */
-    .header-card {
-      background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
-      color: #ffffff;
-      padding: 20px;
-      border-radius: 20px;
-      box-shadow: 0 10px 25px -5px rgba(4, 120, 87, 0.3);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .header-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .brand-section {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .logo-badge {
-      background-color: rgba(255, 255, 255, 0.2);
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      color: #34d399;
-      backdrop-filter: blur(4px);
-    }
-
-    .brand-title h1 {
-      font-size: 20px;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-    }
-
-    .brand-title p {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #a7f3d0;
-      font-weight: 600;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    .btn-header {
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      color: #ffffff;
-      padding: 8px 14px;
-      border-radius: 20px;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      transition: all 0.2s ease;
-      backdrop-filter: blur(4px);
-    }
-
-    .btn-header:hover {
-      background: rgba(255, 255, 255, 0.25);
-    }
-
-    .header-bottom {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding-top: 12px;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-      font-size: 13px;
-      color: #e6f4ea;
-    }
-
-    .time-badge {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 500;
-    }
-
-    .weather-badge {
-      background: rgba(0, 0, 0, 0.2);
-      padding: 4px 12px;
-      border-radius: 12px;
-      font-size: 12px;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* Connection Status Bar */
-    .status-bar {
-      background: var(--card-bg);
-      border-radius: 14px;
-      padding: 12px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-      border: 1px solid var(--border-color);
-      font-size: 13px;
-    }
-
-    .status-item {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-
-    .status-pill {
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .status-pill.connecting { background: #fef3c7; color: #d97706; }
-    .status-pill.connected { background: #d1fae5; color: #059669; }
-    .status-pill.offline { background: #fee2e2; color: #dc2626; }
-    .status-pill.online { background: #d1fae5; color: #059669; }
-
-    /* Master Motor Card */
-    .card {
-      background: var(--card-bg);
-      border-radius: 20px;
-      padding: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-      border: 1px solid var(--border-color);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .motor-card-interactive {
-      cursor: pointer;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    .motor-card-interactive:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,0.06);
-    }
-
-    .card-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .card-title-group {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .card-title {
-      font-size: 18px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .card-subtitle {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .state-badge {
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-weight: 700;
-      font-size: 13px;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    .state-badge.off { background: #e5e7eb; color: #4b5563; }
-    .state-badge.on { background: #10b981; color: #ffffff; animation: pulse 2s infinite; }
-
-    @keyframes pulse {
-      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
-      70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
-    }
-
-    /* Start Time & Remaining Time Grid */
-    .metric-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .metric-box {
-      border-radius: 16px;
-      padding: 16px;
-      color: #ffffff;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .metric-box.start-time {
-      background: linear-gradient(135deg, #059669, #10b981);
-    }
-
-    .metric-box.remaining-time {
-      background: linear-gradient(135deg, var(--blue-card-start), var(--blue-card-end));
-    }
-
-    .metric-label {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.8px;
-      opacity: 0.9;
-    }
-
-    .metric-value {
-      font-size: 26px;
-      font-weight: 700;
-      font-family: monospace;
-      letter-spacing: -0.5px;
-    }
-
-    .metric-subtext {
-      font-size: 12px;
-      opacity: 0.95;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-weight: 500;
-    }
-
-    /* Mode Dynamic Warning Banner */
-    .mode-banner {
-      background-color: var(--gold-bg);
-      border: 1px solid var(--gold-border);
-      color: var(--gold-text);
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      justify-content: center;
-      transition: all 0.3s ease;
-    }
-
-    .mode-banner.running-periodic {
-      background-color: #d1fae5;
-      border-color: #a7f3d0;
-      color: #065f46;
-    }
-
-    .mode-banner.running-manual {
-      background-color: #e0f2fe;
-      border-color: #bae6fd;
-      color: #075985;
-    }
-
-    /* Valves Grid Section */
-    .valves-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
-    }
-
-    .valves-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
-
-    .valve-tile {
-      background: #fafafa;
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 14px;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      position: relative;
-    }
-
-    .valve-tile.active {
-      background: #f0fdf4;
-      border-color: #86efac;
-    }
-
-    .valve-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .valve-name {
-      font-weight: 700;
-      font-size: 15px;
-    }
-
-    .valve-status-badge {
-      font-size: 11px;
-      font-weight: 700;
-      padding: 3px 8px;
-      border-radius: 12px;
-      text-transform: uppercase;
-    }
-
-    .valve-status-badge.closed { background: #e5e7eb; color: #4b5563; }
-    .valve-status-badge.open { background: #d1fae5; color: #059669; }
-
-    .valve-info {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-      font-size: 12px;
-    }
-
-    .valve-row {
-      display: flex;
-      justify-content: space-between;
-      color: var(--text-muted);
-    }
-
-    .valve-row span.val {
-      font-weight: 600;
-      color: var(--text-main);
-      font-family: monospace;
-    }
-
-    .valve-footer {
-      font-size: 11px;
-      color: #9ca3af;
-      padding-top: 6px;
-      border-top: 1px dashed var(--border-color);
-    }
-
-    /* Modals */
-    .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(4px);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 16px;
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.2s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-container {
-      background: #ffffff;
-      width: 100%;
-      max-width: 520px;
-      border-radius: 20px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-      display: flex;
-      flex-direction: column;
-      max-height: 90vh;
-      overflow: hidden;
-      animation: modalSlide 0.2s ease;
-    }
-
-    @keyframes modalSlide {
-      from { transform: translateY(20px); }
-      to { transform: translateY(0); }
-    }
-
-    .modal-header {
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border-color);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .modal-header h2 {
-      font-size: 18px;
-      font-weight: 700;
-    }
-
-    .btn-close {
-      background: #f3f4f6;
-      border: none;
-      width: 32px;
-      height: 32px;
-      border-radius: 50%;
-      font-size: 16px;
-      color: var(--text-muted);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-
-    .modal-body {
-      padding: 20px;
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .modal-footer {
-      padding: 16px 20px;
-      border-top: 1px solid var(--border-color);
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      background: #fafafa;
-    }
-
-    /* Form Components */
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .form-group label {
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--text-main);
-    }
-
-    .form-control {
-      width: 100%;
-      padding: 10px 14px;
-      border: 1px solid var(--border-color);
-      border-radius: 10px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color 0.2s;
-    }
-
-    .form-control:focus {
-      border-color: #10b981;
-    }
-
-    /* Buttons */
-    .btn {
-      padding: 10px 18px;
-      border-radius: 10px;
-      font-size: 14px;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      transition: all 0.2s;
-    }
-
-    .btn-primary { background: #047857; color: #ffffff; }
-    .btn-primary:hover { background: #065f46; }
-    .btn-secondary { background: #e5e7eb; color: #374151; }
-    .btn-danger { background: #ef4444; color: #ffffff; }
-    .btn-danger:hover { background: #dc2626; }
-    .btn-block { width: 100%; }
-
-    /* Action Modal Menu Options */
-    .action-menu {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .action-btn {
-      background: #f9fafb;
-      border: 1px solid var(--border-color);
-      border-radius: 14px;
-      padding: 16px;
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
-    }
-
-    .action-btn:hover {
-      background: #f0fdf4;
-      border-color: #86efac;
-    }
-
-    .action-btn-danger:hover {
-      background: #fef2f2;
-      border-color: #fca5a5;
-    }
-
-    .action-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-    }
-
-    .action-info h3 {
-      font-size: 15px;
-      font-weight: 700;
-    }
-
-    .action-info p {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    /* Tabs inside Logs Modal */
-    .tab-navigation {
-      display: flex;
-      border-bottom: 1px solid var(--border-color);
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .tab-btn {
-      padding: 10px 16px;
-      border: none;
-      background: none;
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--text-muted);
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-    }
-
-    .tab-btn.active {
-      color: #047857;
-      border-bottom-color: #047857;
-    }
-
-    /* Filter Bar for Logs */
-    .log-filter-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      background: #f9fafb;
-      padding: 8px 12px;
-      border-radius: 10px;
-      margin-bottom: 12px;
-      border: 1px solid var(--border-color);
-    }
-
-    .log-filter-bar label {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--text-muted);
-    }
-
-    /* Table styling for Logs & Status */
-    .log-table-wrapper {
-      overflow-x: auto;
-      max-height: 300px;
-    }
-
-    .data-table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-      text-align: left;
-    }
-
-    .data-table th, .data-table td {
-      padding: 10px 12px;
-      border-bottom: 1px solid var(--border-color);
-    }
-
-    .data-table th {
-      background: #f9fafb;
-      font-weight: 700;
-      color: var(--text-muted);
-      position: sticky;
-      top: 0;
-    }
-
-    /* Valve Toggle Switch in Periodic Config */
-    .valve-config-card {
-      background: #fafafa;
-      border: 1px solid var(--border-color);
-      padding: 12px;
-      border-radius: 12px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .valve-config-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 44px;
-      height: 24px;
-    }
-
-    .switch input { opacity: 0; width: 0; height: 0; }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background-color: #ccc;
-      transition: .2s;
-      border-radius: 24px;
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px; width: 18px;
-      left: 3px; bottom: 3px;
-      background-color: white;
-      transition: .2s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider { background-color: #10b981; }
-    input:checked + .slider:before { transform: translateX(20px); }
-
-    .help-text {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SPD FARM AG - Smart Irrigation Control System</title>
+    <!-- Paho MQTT Library via CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <!-- Google Fonts & FontAwesome Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --header-bg-start: #064e3b;
+            --header-bg-end: #047857;
+            --accent-green: #10b981;
+            --text-main: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --blue-card-start: #0284c7;
+            --blue-card-end: #0369a1;
+            --gold-bg: #fffbe2;
+            --gold-border: #fef08a;
+            --gold-text: #854d0e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .app-container {
+            width: 100%;
+            max-width: 720px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        /* Header Banner */
+        .header-card {
+            background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 25px -5px rgba(4, 120, 87, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-section {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-badge {
+            background-color: rgba(255, 255, 255, 0.2);
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 22px;
+            color: #34d399;
+        }
+
+        .brand-title h1 {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .brand-title p {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #a7f3d0;
+            font-weight: 600;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-header {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            padding: 8px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .btn-header:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .header-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.15);
+            font-size: 13px;
+            color: #e6f4ea;
+        }
+
+        /* Connection Bar */
+        .status-bar {
+            background: var(--card-bg);
+            border-radius: 14px;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            border: 1px solid var(--border-color);
+            font-size: 13px;
+        }
+
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+
+        .status-pill.connecting {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .status-pill.connected {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        .status-pill.offline {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+
+        .status-pill.online {
+            background: #d1fae5;
+            color: #059669;
+        }
+
+        /* Motor Card */
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .motor-card-interactive {
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .motor-card-interactive:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+        }
+
+        .state-badge {
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 13px;
+        }
+
+        .state-badge.off {
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        .state-badge.on {
+            background: #10b981;
+            color: #ffffff;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .metric-box {
+            border-radius: 16px;
+            padding: 16px;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .metric-box.start-time {
+            background: linear-gradient(135deg, #059669, #10b981);
+        }
+
+        .metric-box.remaining-time {
+            background: linear-gradient(135deg, var(--blue-card-start), var(--blue-card-end));
+        }
+
+        .metric-label {
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        .metric-value {
+            font-size: 26px;
+            font-weight: 700;
+            font-family: monospace;
+        }
+
+        .metric-subtext {
+            font-size: 12px;
+            opacity: 0.95;
+        }
+
+        .mode-banner {
+            background-color: var(--gold-bg);
+            border: 1px solid var(--gold-border);
+            color: var(--gold-text);
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: center;
+        }
+
+        /* Active Valve Display */
+        .active-valve-container {
+            background: #f0fdf4;
+            border: 1.5px solid #86efac;
+            border-radius: 16px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .standby-valve-tile {
+            background: #fafafa;
+            border: 1px dashed var(--border-color);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        /* Dedicated Section: Next Valve Schedule */
+        .next-valve-section-card {
+            background: linear-gradient(135deg, #e0f2fe, #f0f9ff);
+            border: 1px solid #bae6fd;
+            border-radius: 20px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .next-valve-info-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .next-valve-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: #0369a1;
+            letter-spacing: 0.5px;
+        }
+
+        .next-valve-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: #0c4a6e;
+        }
+
+        .next-valve-timer-pill {
+            background: #0284c7;
+            color: #ffffff;
+            padding: 8px 14px;
+            border-radius: 12px;
+            font-weight: 700;
+            font-family: monospace;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* Modals */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-container {
+            background: #ffffff;
+            width: 100%;
+            max-width: 580px;
+            border-radius: 20px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        .modal-header {
+            padding: 18px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+        }
+
+        .btn-close {
+            background: #f3f4f6;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            font-size: 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-body {
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .modal-footer {
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            background: #fafafa;
+        }
+
+        /* Drag-and-Drop Dynamic Items in Periodic Config */
+        .dynamic-item-card {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 14px;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            cursor: grab;
+            transition: background 0.2s, transform 0.2s, box-shadow 0.2s;
+            user-select: none;
+        }
+
+        .dynamic-item-card:active {
+            cursor: grabbing;
+            opacity: 0.85;
+            transform: scale(0.98);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+
+        .dynamic-item-card.dragging {
+            opacity: 0.4;
+            border: 2px dashed var(--accent-green);
+        }
+
+        .dynamic-item-card.off-timer-card {
+            background: #f0f9ff;
+            border-color: #bae6fd;
+        }
+
+        .drag-handle {
+            color: var(--text-muted);
+            cursor: grab;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .time-display-trigger {
+            background: #ffffff;
+            color: var(--text-main);
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-family: monospace;
+            font-size: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border: 1px solid var(--border-color);
+        }
+
+        .time-display-trigger:hover {
+            border-color: var(--accent-green);
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            font-size: 14px;
+            outline: none;
+            background: #ffffff;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 10px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            border: none;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: #047857;
+            color: #ffffff;
+        }
+
+        .btn-primary:hover {
+            background: #065f46;
+        }
+
+        .btn-secondary {
+            background: #e5e7eb;
+            color: #374151;
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: #ffffff;
+        }
+
+        /* Action Modal Buttons */
+        .action-btn {
+            background: #f9fafb;
+            border: 1px solid var(--border-color);
+            border-radius: 14px;
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            cursor: pointer;
+        }
+
+        .action-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        /* Logs Matrix Table */
+        .tab-navigation {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tab-btn {
+            padding: 10px 16px;
+            border: none;
+            background: none;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-muted);
+            cursor: pointer;
+        }
+
+        .tab-btn.active {
+            color: #047857;
+            border-bottom: 2px solid #047857;
+        }
+
+        .log-table-wrapper {
+            overflow-x: auto;
+            max-height: 320px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+            text-align: left;
+        }
+
+        .data-table th,
+        .data-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .data-table th {
+            background: #f9fafb;
+            font-weight: 700;
+            color: var(--text-muted);
+            position: sticky;
+            top: 0;
+        }
+
+        /* Front-End Clock Picker with Direct Input Fields */
+        .theme-clock-container {
+            background: #ffffff;
+            border-radius: 20px;
+            overflow: hidden;
+            width: 330px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--border-color);
+        }
+
+        .theme-clock-header {
+            background: linear-gradient(135deg, var(--header-bg-start), var(--header-bg-end));
+            color: #ffffff;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .theme-clock-digital {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clock-digit-input {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            width: 72px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            border: 2px solid transparent;
+            text-align: center;
+            outline: none;
+            font-family: monospace;
+        }
+
+        .clock-digit-input:focus,
+        .clock-digit-input.active {
+            background: #ffffff;
+            color: #047857;
+            border-color: #34d399;
+        }
+
+        .theme-clock-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            background: #fafafa;
+        }
+
+        .theme-clock-dial {
+            width: 220px;
+            height: 220px;
+            background: #e2e8f0;
+            border-radius: 50%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-clock-hand {
+            position: absolute;
+            width: 2px;
+            height: 80px;
+            background: var(--accent-green);
+            bottom: 50%;
+            left: calc(50% - 1px);
+            transform-origin: bottom center;
+            pointer-events: none;
+        }
+
+        .theme-clock-head {
+            width: 28px;
+            height: 28px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            position: absolute;
+            top: -14px;
+            left: -13px;
+            color: #ffffff;
+            font-weight: 700;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-clock-num {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-main);
+            cursor: pointer;
+        }
+
+        .theme-clock-num:hover {
+            background: rgba(16, 185, 129, 0.2);
+        }
+    </style>
 </head>
+
 <body>
 
-  <div class="app-container">
-    
-    <!-- Top Banner Header -->
-    <header class="header-card">
-      <div class="header-top">
-        <div class="brand-section">
-          <div class="logo-badge">
-            <i class="fa-solid fa-seedling"></i>
-          </div>
-          <div class="brand-title">
-            <h1>SPD FARM AG</h1>
-            <p>SMART IRRIGATION SYSTEM</p>
-          </div>
-        </div>
-        <div class="header-actions">
-          <button class="btn-header" onclick="openModal('logsModal')">
-            <i class="fa-solid fa-clipboard-list"></i> 📋 Logs
-          </button>
-          <button class="btn-header" onclick="openModal('settingsModal')">
-            <i class="fa-solid fa-gear"></i> ⚙ Settings
-          </button>
-        </div>
-      </div>
-      <div class="header-bottom">
-        <div class="time-badge">
-          <i class="fa-regular fa-clock"></i>
-          <span id="liveClock">--:--:-- | YYYY-MM-DD</span>
-        </div>
-        <div class="weather-badge">
-          <i class="fa-solid fa-sun" style="color: #f59e0b;"></i>
-          <span>29°C Sunny • Hum 62%</span>
-        </div>
-      </div>
-    </header>
+    <div class="app-container">
 
-    <!-- Connection Status Bar -->
-    <div class="status-bar">
-      <div class="status-item">
-        <span>Broker:</span>
-        <span id="brokerPill" class="status-pill connecting">CONNECTING...</span>
-      </div>
-      <div class="status-item">
-        <span>ESP32 Device:</span>
-        <span id="espPill" class="status-pill offline">OFFLINE</span>
-      </div>
+        <!-- Top Banner Header -->
+        <header class="header-card">
+            <div class="header-top">
+                <div class="brand-section">
+                    <div class="logo-badge"><i class="fa-solid fa-seedling"></i></div>
+                    <div class="brand-title">
+                        <h1>SPD FARM AG</h1>
+                        <p>SMART IRRIGATION SYSTEM</p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="btn-header" onclick="openModal('logsModal')"><i
+                            class="fa-solid fa-clipboard-list"></i> 📋 Logs</button>
+                    <button class="btn-header" onclick="openModal('settingsModal')"><i class="fa-solid fa-gear"></i> ⚙
+                        Settings</button>
+                </div>
+            </div>
+            <div class="header-bottom">
+                <div><i class="fa-regular fa-clock"></i> <span id="liveClock">--:--:-- | YYYY-MM-DD</span></div>
+                <div><i class="fa-solid fa-sun" style="color: #f59e0b;"></i> <span>29°C Sunny • Hum 62%</span></div>
+            </div>
+        </header>
+
+        <!-- Connection Status -->
+        <div class="status-bar">
+            <div><span>Broker:</span> <span id="brokerPill" class="status-pill connecting">CONNECTING...</span></div>
+            <div><span>ESP32 Device:</span> <span id="espPill" class="status-pill offline">OFFLINE</span></div>
+        </div>
+
+        <!-- Master Irrigation Motor Card -->
+        <main class="card motor-card-interactive" onclick="openModal('motorActionModal')">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 18px; font-weight: 700;"><i class="fa-solid fa-bolt"
+                            style="color: #f59e0b;"></i> Master Irrigation Motor</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">👆 Tap card for controls & operation menu
+                    </div>
+                </div>
+                <div id="motorStateBadge" class="state-badge off"><i class="fa-solid fa-power-off"></i> OFF</div>
+            </div>
+
+            <div class="metric-grid">
+                <div class="metric-box start-time">
+                    <div class="metric-label">START TIME</div>
+                    <div class="metric-value" id="motorStartTime">-- : --</div>
+                    <div class="metric-subtext"><i class="fa-regular fa-calendar"></i> <span id="motorStartDate">Date:
+                            Today</span></div>
+                </div>
+                <div class="metric-box remaining-time">
+                    <div class="metric-label">REMAINING TIME</div>
+                    <div class="metric-value" id="motorRemainingTime">00:00</div>
+                    <div class="metric-subtext" id="motorActiveValveText"><i class="fa-solid fa-hourglass-half"></i> No
+                        Active Valve</div>
+                </div>
+            </div>
+
+            <div class="mode-banner" id="motorModeBanner">
+                <span id="motorModeBannerText">Motor Standby • Select Manual or Periodic Mode</span>
+            </div>
+        </main>
+
+        <!-- Field Valves Section -->
+        <section class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="font-size: 16px; font-weight: 700;"><i class="fa-solid fa-faucet-drip"
+                            style="color: #0284c7;"></i> Field Valves Status</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">Real-time Telemetry Indicator</div>
+                </div>
+                <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; border-radius: 20px;"
+                    onclick="openModal('valveStatusModal')">
+                    Screen: All Valve Status
+                </button>
+            </div>
+
+            <!-- Active Valve Container -->
+            <div id="activeValveContainer">
+                <div class="standby-valve-tile">
+                    <i class="fa-solid fa-power-off" style="font-size: 20px; margin-bottom: 6px; display: block;"></i>
+                    All field valves are currently CLOSED (Standby)
+                </div>
+            </div>
+        </section>
+
+        <!-- Dedicated Section Below Field Valves: Next Valve Schedule -->
+        <section class="next-valve-section-card" id="nextValveSectionCard" style="display: none;">
+            <div class="next-valve-info-group">
+                <span class="next-valve-title"><i class="fa-solid fa-forward"></i> Next Scheduled Sequence</span>
+                <span class="next-valve-name" id="nextValveName">Valve 2</span>
+            </div>
+            <div class="next-valve-timer-pill">
+                <i class="fa-regular fa-clock"></i>
+                <span id="nextValveCountdown">Starts in 00:00</span>
+            </div>
+        </section>
+
     </div>
 
-    <!-- Master Irrigation Motor Card -->
-    <main class="card motor-card-interactive" onclick="openModal('motorActionModal')">
-      <div class="card-header">
-        <div class="card-title-group">
-          <div class="card-title">
-            <i class="fa-solid fa-bolt" style="color: #f59e0b;"></i>
-            Master Irrigation Motor
-          </div>
-          <div class="card-subtitle">👆 Tap card for controls & operation menu</div>
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- 1. Motor Action Modal -->
+    <div class="modal-overlay" id="motorActionModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Master Motor Operations</h2>
+                <button class="btn-close" onclick="closeModal('motorActionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <div class="action-btn" onclick="closeModal('motorActionModal'); openModal('manualModeModal');">
+                        <div class="action-icon" style="background: #e0f2fe; color: #0284c7;"><i
+                                class="fa-solid fa-hand"></i></div>
+                        <div>
+                            <h3 style="font-size: 15px; font-weight: 700;">Manual Mode</h3>
+                            <p style="font-size: 12px; color: var(--text-muted);">Select specific valve & dynamic
+                                duration</p>
+                        </div>
+                    </div>
+
+                    <div class="action-btn" onclick="closeModal('motorActionModal'); startPeriodicMode();">
+                        <div class="action-icon" style="background: #d1fae5; color: #059669;"><i
+                                class="fa-solid fa-rotate"></i></div>
+                        <div>
+                            <h3 style="font-size: 15px; font-weight: 700;">Periodic Mode</h3>
+                            <p style="font-size: 12px; color: var(--text-muted);">Run configured multi-valve sequential
+                                cycle</p>
+                        </div>
+                    </div>
+
+                    <div class="action-btn" onclick="closeModal('motorActionModal'); triggerMotorShutdown();">
+                        <div class="action-icon" style="background: #fee2e2; color: #dc2626;"><i
+                                class="fa-solid fa-power-off"></i></div>
+                        <div>
+                            <h3 style="font-size: 15px; font-weight: 700; color: #dc2626;">Turn Motor OFF</h3>
+                            <p style="font-size: 12px; color: var(--text-muted);">Immediate cutoff with 5s pressure
+                                bleed delay</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-        <div id="motorStateBadge" class="state-badge off">
-          <i class="fa-solid fa-power-off"></i> OFF
-        </div>
-      </div>
-
-      <div class="metric-grid">
-        <div class="metric-box start-time">
-          <div class="metric-label">START TIME</div>
-          <div class="metric-value" id="motorStartTime">-- : --</div>
-          <div class="metric-subtext">
-            <i class="fa-regular fa-calendar"></i> <span id="motorStartDate">Date: Today</span>
-          </div>
-        </div>
-        <div class="metric-box remaining-time">
-          <div class="metric-label">REMAINING TIME</div>
-          <div class="metric-value" id="motorRemainingTime">00:00</div>
-          <div class="metric-subtext" id="motorActiveValveText">
-            <i class="fa-solid fa-hourglass-half"></i> No Active Valve
-          </div>
-        </div>
-      </div>
-
-      <!-- Mode Banner replacing Hydraulic Interlock banner -->
-      <div class="mode-banner" id="motorModeBanner">
-        <i class="fa-solid fa-circle-info"></i>
-        <span id="motorModeBannerText">Motor Standby • Select Manual or Periodic Mode</span>
-      </div>
-    </main>
-
-    <!-- Field Valves Section -->
-    <section class="card">
-      <div class="valves-header">
-        <div class="card-title-group">
-          <div class="card-title" style="font-size: 16px;">
-            <i class="fa-solid fa-faucet-drip" style="color: #0284c7;"></i>
-            Field Valves Status
-          </div>
-          <div class="card-subtitle">Real-time Telemetry Indicators</div>
-        </div>
-        <button class="btn btn-secondary" style="font-size: 12px; padding: 6px 12px; border-radius: 20px;" onclick="openModal('valveStatusModal')">
-          Screen: All Valve Status
-        </button>
-      </div>
-
-      <div class="valves-grid">
-        <!-- Valve 1 -->
-        <div class="valve-tile" id="valveTile1">
-          <div class="valve-top">
-            <span class="valve-name">Valve 1</span>
-            <span class="valve-status-badge closed" id="valveBadge1">CLOSED</span>
-          </div>
-          <div class="valve-info">
-            <div class="valve-row">
-              <span>Run Time:</span>
-              <span class="val" id="valveRun1">0m 00s</span>
-            </div>
-            <div class="valve-row">
-              <span>Remaining:</span>
-              <span class="val" id="valveRem1">-- : --</span>
-            </div>
-          </div>
-          <div class="valve-footer" id="valveLast1">Last: Offline/Standby</div>
-        </div>
-
-        <!-- Valve 2 -->
-        <div class="valve-tile" id="valveTile2">
-          <div class="valve-top">
-            <span class="valve-name">Valve 2</span>
-            <span class="valve-status-badge closed" id="valveBadge2">CLOSED</span>
-          </div>
-          <div class="valve-info">
-            <div class="valve-row">
-              <span>Run Time:</span>
-              <span class="val" id="valveRun2">0m 00s</span>
-            </div>
-            <div class="valve-row">
-              <span>Remaining:</span>
-              <span class="val" id="valveRem2">-- : --</span>
-            </div>
-          </div>
-          <div class="valve-footer" id="valveLast2">Last: Offline/Standby</div>
-        </div>
-
-        <!-- Valve 3 -->
-        <div class="valve-tile" id="valveTile3">
-          <div class="valve-top">
-            <span class="valve-name">Valve 3</span>
-            <span class="valve-status-badge closed" id="valveBadge3">CLOSED</span>
-          </div>
-          <div class="valve-info">
-            <div class="valve-row">
-              <span>Run Time:</span>
-              <span class="val" id="valveRun3">0m 00s</span>
-            </div>
-            <div class="valve-row">
-              <span>Remaining:</span>
-              <span class="val" id="valveRem3">-- : --</span>
-            </div>
-          </div>
-          <div class="valve-footer" id="valveLast3">Last: Offline/Standby</div>
-        </div>
-
-        <!-- Valve 4 -->
-        <div class="valve-tile" id="valveTile4">
-          <div class="valve-top">
-            <span class="valve-name">Valve 4</span>
-            <span class="valve-status-badge closed" id="valveBadge4">CLOSED</span>
-          </div>
-          <div class="valve-info">
-            <div class="valve-row">
-              <span>Run Time:</span>
-              <span class="val" id="valveRun4">0m 00s</span>
-            </div>
-            <div class="valve-row">
-              <span>Remaining:</span>
-              <span class="val" id="valveRem4">-- : --</span>
-            </div>
-          </div>
-          <div class="valve-footer" id="valveLast4">Last: Offline/Standby</div>
-        </div>
-      </div>
-    </section>
-
-  </div>
-
-  <!-- ==================== MODALS ==================== -->
-
-  <!-- 1. Motor Options Action Modal -->
-  <div class="modal-overlay" id="motorActionModal">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2>Master Motor Operations</h2>
-        <button class="btn-close" onclick="closeModal('motorActionModal')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="action-menu">
-          <!-- Manual Mode Button -->
-          <div class="action-btn" onclick="closeModal('motorActionModal'); openModal('manualModeModal');">
-            <div class="action-icon" style="background: #e0f2fe; color: #0284c7;">
-              <i class="fa-solid fa-hand"></i>
-            </div>
-            <div class="action-info">
-              <h3>Manual Mode</h3>
-              <p>Select specific initial valve & dynamic duration</p>
-            </div>
-          </div>
-
-          <!-- Periodic Mode Button -->
-          <div class="action-btn" onclick="closeModal('motorActionModal'); startPeriodicMode();">
-            <div class="action-icon" style="background: #d1fae5; color: #059669;">
-              <i class="fa-solid fa-rotate"></i>
-            </div>
-            <div class="action-info">
-              <h3>Periodic Mode</h3>
-              <p>Run automated multi-valve sequence cycle</p>
-            </div>
-          </div>
-
-          <!-- Emergency Motor Off -->
-          <div class="action-btn action-btn-danger" onclick="closeModal('motorActionModal'); triggerMotorShutdown();">
-            <div class="action-icon" style="background: #fee2e2; color: #dc2626;">
-              <i class="fa-solid fa-power-off"></i>
-            </div>
-            <div class="action-info">
-              <h3 style="color: #dc2626;">Turn Motor OFF</h3>
-              <p>Immediate motor cutoff with 5s pressure bleed delay</p>
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
-  </div>
 
-  <!-- 2. Manual Mode Setup Modal -->
-  <div class="modal-overlay" id="manualModeModal">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2>Manual Mode Configuration</h2>
-        <button class="btn-close" onclick="closeModal('manualModeModal')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label>Select Initial Active Valve:</label>
-          <select class="form-control" id="manualValveSelect">
-            <option value="1">Valve 1</option>
-            <option value="2">Valve 2</option>
-            <option value="3">Valve 3</option>
-            <option value="4">Valve 4</option>
-          </select>
+    <!-- 2. Manual Mode Setup Modal -->
+    <div class="modal-overlay" id="manualModeModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Manual Mode Setup</h2>
+                <button class="btn-close" onclick="closeModal('manualModeModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 600;">Select Active Valve:</label>
+                    <select class="form-control" id="manualValveSelect">
+                        <option value="1">Valve 1</option>
+                        <option value="2">Valve 2</option>
+                        <option value="3">Valve 3</option>
+                        <option value="4">Valve 4</option>
+                    </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 6px;">
+                    <label style="font-size: 13px; font-weight: 600;">Select Irrigation Run Time:</label>
+                    <div class="time-display-trigger" onclick="openClockPicker('manualTimer')">
+                        <span><i class="fa-regular fa-clock" style="color: var(--accent-green);"></i> <span
+                                id="manualTimerText">00 Hours : 30 Mins</span></span>
+                        <i class="fa-solid fa-pen" style="color: var(--text-muted);"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('manualModeModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="startManualMode()">Start Irrigation</button>
+            </div>
         </div>
-        <div class="form-group">
-          <label>Runtime Duration (Seconds):</label>
-          <input type="number" class="form-control" id="manualDurationInput" value="60" min="5" max="3600">
-          <span class="help-text">Motor automatically cuts off after countdown + 5s buffer.</span>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('manualModeModal')">Cancel</button>
-        <button class="btn btn-primary" onclick="startManualMode()">Start Irrigation</button>
-      </div>
     </div>
-  </div>
 
-  <!-- 3. Periodic Mode Configuration Modal -->
-  <div class="modal-overlay" id="settingsModal">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2>Periodic Mode Settings</h2>
-        <button class="btn-close" onclick="closeModal('settingsModal')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <label style="font-weight: 700; font-size: 14px;">Individual Valve Timing Allocation:</label>
+    <!-- 3. Periodic Mode Configuration Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Periodic Mode Configuration</h2>
+                <button class="btn-close" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div style="display: flex; gap: 8px; justify-content: space-between; align-items: center;">
+                    <label style="font-weight: 700; font-size: 13px;">Add Sequence Element:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-primary" style="font-size: 12px; padding: 6px 12px;"
+                            onclick="addValveCard()">
+                            <i class="fa-solid fa-plus"></i> Add Valve
+                        </button>
+                        <button class="btn"
+                            style="font-size: 12px; padding: 6px 12px; background: #0284c7; color: white;"
+                            onclick="addOffTimerCard()">
+                            <i class="fa-solid fa-plus"></i> Add OFF Timer
+                        </button>
+                    </div>
+                </div>
 
-        <!-- Valve 1 Config -->
-        <div class="valve-config-card">
-          <div class="valve-config-header">
-            <span>Valve 1</span>
-            <label class="switch">
-              <input type="checkbox" id="pValveEn1" checked onchange="updatePeriodicCalculations()">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <input type="number" class="form-control" id="pValveDur1" value="30" min="1" placeholder="Duration (s)" onchange="updatePeriodicCalculations()">
+                <span style="font-size: 11px; color: var(--text-muted);"><i class="fa-solid fa-arrows-up-down"></i>
+                    Press & drag any card to reorder execution sequence</span>
+
+                <!-- Drag-and-Drop Container -->
+                <div id="dynamicPeriodicList" style="display: flex; flex-direction: column; gap: 12px;"></div>
+
+                <div class="mode-banner" style="font-size: 11px; text-align: center;" id="periodicCalculationDisplay">
+                    Target Cycle Duration: 0m 0s
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
+                <button class="btn btn-primary" onclick="savePeriodicSettings()">Save Settings</button>
+            </div>
         </div>
-
-        <!-- Valve 2 Config -->
-        <div class="valve-config-card">
-          <div class="valve-config-header">
-            <span>Valve 2</span>
-            <label class="switch">
-              <input type="checkbox" id="pValveEn2" checked onchange="updatePeriodicCalculations()">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <input type="number" class="form-control" id="pValveDur2" value="30" min="1" placeholder="Duration (s)" onchange="updatePeriodicCalculations()">
-        </div>
-
-        <!-- Valve 3 Config -->
-        <div class="valve-config-card">
-          <div class="valve-config-header">
-            <span>Valve 3</span>
-            <label class="switch">
-              <input type="checkbox" id="pValveEn3" onchange="updatePeriodicCalculations()">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <input type="number" class="form-control" id="pValveDur3" value="30" min="1" placeholder="Duration (s)" onchange="updatePeriodicCalculations()">
-        </div>
-
-        <!-- Valve 4 Config -->
-        <div class="valve-config-card">
-          <div class="valve-config-header">
-            <span>Valve 4</span>
-            <label class="switch">
-              <input type="checkbox" id="pValveEn4" onchange="updatePeriodicCalculations()">
-              <span class="slider"></span>
-            </label>
-          </div>
-          <input type="number" class="form-control" id="pValveDur4" value="30" min="1" placeholder="Duration (s)" onchange="updatePeriodicCalculations()">
-        </div>
-
-        <div class="mode-banner" style="font-size: 11px; text-align: center;" id="periodicCalculationDisplay">
-          Target Motor Run: 60s | Safe Cutoff (+5s buffer): 65s
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('settingsModal')">Cancel</button>
-        <button class="btn btn-primary" onclick="savePeriodicSettings()">Save Settings</button>
-      </div>
     </div>
-  </div>
 
-  <!-- 4. Dedicated Combined Logs Modal (Motor Daily + Field Valves) -->
-  <div class="modal-overlay" id="logsModal">
-    <div class="modal-container" style="max-width: 640px;">
-      <div class="modal-header">
-        <h2>📋 System Activity Logs</h2>
-        <button class="btn-close" onclick="closeModal('logsModal')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="tab-navigation">
-          <button class="tab-btn active" id="tabBtnMotor" onclick="switchLogTab('motor')">Motor Activity Log</button>
-          <button class="tab-btn" id="tabBtnValve" onclick="switchLogTab('valve')">Field Valves Log</button>
+    <!-- 4. Clock Picker Modal (Editable Input + Radial Dial) -->
+    <div class="modal-overlay" id="clockPickerModal" style="z-index: 1100;">
+        <div class="theme-clock-container">
+            <div class="theme-clock-header">
+                <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.5px; opacity: 0.9;">SELECT DURATION
+                    (TYPE OR DIAL)</div>
+                <div class="theme-clock-digital">
+                    <input type="number" min="0" max="23" class="clock-digit-input active" id="clockHrInput"
+                        onfocus="switchClockMode('HR')" onchange="handleManualClockInput('HR', this.value)">
+                    <span style="font-size: 32px; font-weight: 700;">:</span>
+                    <input type="number" min="0" max="59" class="clock-digit-input" id="clockMinInput"
+                        onfocus="switchClockMode('MIN')" onchange="handleManualClockInput('MIN', this.value)">
+                </div>
+            </div>
+
+            <div class="theme-clock-body">
+                <div class="theme-clock-dial" id="clockDialFace">
+                    <div class="theme-clock-hand" id="clockPointerHand">
+                        <div class="theme-clock-head" id="clockPointerHead">0</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; width: 100%; gap: 10px;">
+                    <button class="btn btn-secondary" style="font-size: 13px;"
+                        onclick="closeModal('clockPickerModal')">CANCEL</button>
+                    <button class="btn btn-primary" style="font-size: 13px;" onclick="confirmClockPicker()">OK</button>
+                </div>
+            </div>
         </div>
-
-        <!-- Motor Log Tab Content -->
-        <div id="motorLogContent">
-          <div class="log-table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Start Time</th>
-                  <th>End Time</th>
-                  <th>Duration</th>
-                  <th>Mode</th>
-                </tr>
-              </thead>
-              <tbody id="motorLogTableBody">
-                <tr><td colspan="5" style="text-align: center; color: #9ca3af;">No recent motor history recorded.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        <!-- Valve Log Tab Content -->
-        <div id="valveLogContent" style="display: none;">
-          <!-- 7-Day Dropdown Date Filter -->
-          <div class="log-filter-bar">
-            <label><i class="fa-regular fa-calendar-days"></i> Select Date (Past 7 Days):</label>
-            <select class="form-control" id="valveDateFilter" style="width: auto; padding: 4px 10px; font-size: 12px;" onchange="renderValveLogTable()">
-              <option value="ALL">Last 7 Days (Default)</option>
-            </select>
-          </div>
-
-          <div class="log-table-wrapper">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Valve #</th>
-                  <th>Start Time</th>
-                  <th>End Time</th>
-                  <th>Total Runtime</th>
-                </tr>
-              </thead>
-              <tbody id="valveLogTableBody">
-                <tr><td colspan="5" style="text-align: center; color: #9ca3af;">No recent valve activations recorded.</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('logsModal')">Close</button>
-      </div>
     </div>
-  </div>
 
-  <!-- 5. All Valve Status Modal -->
-  <div class="modal-overlay" id="valveStatusModal">
-    <div class="modal-container">
-      <div class="modal-header">
-        <h2>Screen: All Valve Status</h2>
-        <button class="btn-close" onclick="closeModal('valveStatusModal')">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div class="log-table-wrapper">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th>Valve #</th>
-                <th>Status</th>
-                <th>Last Update Log</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Valve 1</td>
-                <td><span class="valve-status-badge closed" id="modalVBadge1">CLOSED</span></td>
-                <td id="modalVLog1">Offline / Standby</td>
-              </tr>
-              <tr>
-                <td>Valve 2</td>
-                <td><span class="valve-status-badge closed" id="modalVBadge2">CLOSED</span></td>
-                <td id="modalVLog2">Offline / Standby</td>
-              </tr>
-              <tr>
-                <td>Valve 3</td>
-                <td><span class="valve-status-badge closed" id="modalVBadge3">CLOSED</span></td>
-                <td id="modalVLog3">Offline / Standby</td>
-              </tr>
-              <tr>
-                <td>Valve 4</td>
-                <td><span class="valve-status-badge closed" id="modalVBadge4">CLOSED</span></td>
-                <td id="modalVLog4">Offline / Standby</td>
-              </tr>
-            </tbody>
-          </table>
+    <!-- 5. Activity Logs Modal -->
+    <div class="modal-overlay" id="logsModal">
+        <div class="modal-container" style="max-width: 640px;">
+            <div class="modal-header">
+                <h2>📋 System Activity Logs</h2>
+                <button class="btn-close" onclick="closeModal('logsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="tab-navigation">
+                    <button class="tab-btn active" id="tabBtnMotor" onclick="switchLogTab('motor')">Motor Daily
+                        Log</button>
+                    <button class="tab-btn" id="tabBtnValve" onclick="switchLogTab('valve')">Field Valves Log</button>
+                </div>
+
+                <div id="motorLogContent">
+                    <div class="log-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Start Time</th>
+                                    <th>End Time</th>
+                                    <th>Duration</th>
+                                    <th>Mode</th>
+                                </tr>
+                            </thead>
+                            <tbody id="motorLogTableBody">
+                                <tr>
+                                    <td colspan="5" style="text-align: center; color: #9ca3af;">No recent motor history
+                                        recorded.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="valveLogContent" style="display: none;">
+                    <div class="log-table-wrapper">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Valve 1</th>
+                                    <th>Valve 2</th>
+                                    <th>Valve 3</th>
+                                    <th>Valve 4</th>
+                                    <th>Day Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="valveMatrixTableBody">
+                                <tr>
+                                    <td colspan="6" style="text-align: center; color: #9ca3af;">No valve activity
+                                        recorded yet.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('logsModal')">Close</button>
+            </div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="closeModal('valveStatusModal')">Close</button>
-      </div>
     </div>
-  </div>
 
-  <!-- ==================== JAVASCRIPT ENGINE ==================== -->
-  <script>
-    /* MQTT Configuration */
-    const MQTT_CONFIG = {
-      host: "174ca6aa415744a08b852a7c5bfdc408.s1.eu.hivemq.cloud",
-      port: 8884,
-      path: "/mqtt",
-      username: "Ohmprakash",
-      password: "12345678",
-      commandTopic: "esp32/relay/set",
-      statusTopic: "esp32/status"
-    };
+    <!-- 6. All Valve Status Modal -->
+    <div class="modal-overlay" id="valveStatusModal">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2>Screen: All Valve Status</h2>
+                <button class="btn-close" onclick="closeModal('valveStatusModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="log-table-wrapper">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Valve #</th>
+                                <th>Status</th>
+                                <th>Last Activity Log</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>Valve 1</td>
+                                <td><span class="status-pill offline" id="modalVBadge1">CLOSED</span></td>
+                                <td id="modalVLog1">Offline / Standby</td>
+                            </tr>
+                            <tr>
+                                <td>Valve 2</td>
+                                <td><span class="status-pill offline" id="modalVBadge2">CLOSED</span></td>
+                                <td id="modalVLog2">Offline / Standby</td>
+                            </tr>
+                            <tr>
+                                <td>Valve 3</td>
+                                <td><span class="status-pill offline" id="modalVBadge3">CLOSED</span></td>
+                                <td id="modalVLog3">Offline / Standby</td>
+                            </tr>
+                            <tr>
+                                <td>Valve 4</td>
+                                <td><span class="status-pill offline" id="modalVBadge4">CLOSED</span></td>
+                                <td id="modalVLog4">Offline / Standby</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal('valveStatusModal')">Close</button>
+            </div>
+        </div>
+    </div>
 
-    let mqttClient = null;
+    <!-- ==================== JAVASCRIPT ENGINE ==================== -->
+    <script>
+        const MQTT_CONFIG = {
+            host: "174ca6aa415744a08b852a7c5bfdc408.s1.eu.hivemq.cloud",
+            port: 8884,
+            path: "/mqtt",
+            username: "Ohmprakash",
+            password: "12345678",
+            commandTopic: "esp32/relay/set",
+            statusTopic: "esp32/status"
+        };
 
-    /* System Operational State */
-    let systemState = {
-      motorState: "OFF",
-      activeValve: null,
-      valves: {
-        1: { state: "CLOSED", startTime: null, runTimeSec: 0 },
-        2: { state: "CLOSED", startTime: null, runTimeSec: 0 },
-        3: { state: "CLOSED", startTime: null, runTimeSec: 0 },
-        4: { state: "CLOSED", startTime: null, runTimeSec: 0 }
-      },
-      motorStartTimeStr: "-- : --",
-      motorStartDateStr: "Date: Today",
-      motorSessionStartTimestamp: null,
-      currentMode: null // 'MANUAL' or 'PERIODIC'
-    };
+        let mqttClient = null;
 
-    /* Periodic Mode Settings Cache */
-    let periodicSettings = {
-      valves: {
-        1: { enabled: true, duration: 30 },
-        2: { enabled: true, duration: 30 },
-        3: { enabled: false, duration: 30 },
-        4: { enabled: false, duration: 30 }
-      }
-    };
+        let systemState = {
+            motorState: "OFF",
+            activeValve: null,
+            valves: {
+                1: { state: "CLOSED", startTime: null },
+                2: { state: "CLOSED", startTime: null },
+                3: { state: "CLOSED", startTime: null },
+                4: { state: "CLOSED", startTime: null }
+            },
+            motorSessionStartTimestamp: null,
+            currentMode: null
+        };
 
-    /* Timers & Logs Cache */
-    let mainCountdownInterval = null;
-    let currentCountdownSec = 0;
-    let motorLogs = [];
-    let valveLogs = [];
+        let periodicSequence = [
+            { type: 'VALVE', valveNum: 1, hr: 0, min: 30 },
+            { type: 'OFF_TIMER', hr: 0, min: 5 },
+            { type: 'VALVE', valveNum: 2, hr: 0, min: 30 }
+        ];
 
-    /* Initialize Application */
-    window.addEventListener("DOMContentLoaded", () => {
-      initClock();
-      populate7DayDropdown();
-      loadPeriodicSettingsFromStorage();
-      connectMQTT();
-    });
+        let manualTimer = { hr: 0, min: 30 };
+        let activeClockTarget = null;
+        let clockMode = 'HR';
+        let tempPicker = { hr: 0, min: 0 };
 
-    /* Live Clock Update */
-    function initClock() {
-      setInterval(() => {
-        const now = new Date();
-        const timeStr = now.toTimeString().split(' ')[0];
-        const dateStr = now.toISOString().split('T')[0];
-        document.getElementById("liveClock").innerText = `${timeStr} | ${dateStr}`;
-      }, 1000);
-    }
+        let motorLogs = [];
+        let valveDailyMatrix = {};
+        let mainCountdownInterval = null;
+        let currentCountdownSec = 0;
+        let dragSrcIndex = null;
 
-    /* Populates 7-Day Select Options in Valve Log */
-    function populate7DayDropdown() {
-      const select = document.getElementById("valveDateFilter");
-      select.innerHTML = '<option value="ALL">Last 7 Days (Default)</option>';
+        window.addEventListener("DOMContentLoaded", () => {
+            initClock();
+            renderPeriodicSequenceCards();
+            connectMQTT();
+        });
 
-      for (let i = 0; i < 7; i++) {
-        const d = new Date();
-        d.setDate(d.getDate() - i);
-        const dateStr = d.toLocaleDateString();
-        const option = document.createElement("option");
-        option.value = dateStr;
-        option.innerText = i === 0 ? `Today (${dateStr})` : (i === 1 ? `Yesterday (${dateStr})` : dateStr);
-        select.appendChild(option);
-      }
-    }
-
-    /* MQTT Connection Engine */
-    function connectMQTT() {
-      const clientId = "SPD_Dashboard_" + Math.random().toString(16).substr(2, 8);
-      mqttClient = new Paho.MQTT.Client(MQTT_CONFIG.host, MQTT_CONFIG.port, MQTT_CONFIG.path, clientId);
-
-      mqttClient.onConnectionLost = (responseObject) => {
-        console.warn("MQTT Connection Lost:", responseObject.errorMessage);
-        updateStatusBadges(false);
-        setTimeout(connectMQTT, 5000);
-      };
-
-      mqttClient.onMessageArrived = (message) => {
-        handleIncomingTelemetry(message.destinationName, message.payloadString);
-      };
-
-      const connectOptions = {
-        useSSL: true,
-        userName: MQTT_CONFIG.username,
-        password: MQTT_CONFIG.password,
-        onSuccess: () => {
-          console.log("MQTT Connected Successfully.");
-          updateStatusBadges(true);
-          mqttClient.subscribe(MQTT_CONFIG.statusTopic);
-          publishCommand("GET_STATUS");
-        },
-        onFailure: (err) => {
-          console.error("MQTT Connection Failed:", err);
-          updateStatusBadges(false);
-          setTimeout(connectMQTT, 5000);
+        function initClock() {
+            setInterval(() => {
+                const now = new Date();
+                document.getElementById("liveClock").innerText = `${now.toTimeString().split(' ')[0]} | ${now.toISOString().split('T')[0]}`;
+            }, 1000);
         }
-      };
 
-      mqttClient.connect(connectOptions);
-    }
+        /* MQTT Connection Engine */
+        function connectMQTT() {
+            const clientId = "SPD_Dash_" + Math.random().toString(16).substr(2, 8);
+            mqttClient = new Paho.MQTT.Client(MQTT_CONFIG.host, MQTT_CONFIG.port, MQTT_CONFIG.path, clientId);
 
-    function publishCommand(payload) {
-      if (mqttClient && mqttClient.isConnected()) {
-        const message = new Paho.MQTT.Message(payload);
-        message.destinationName = MQTT_CONFIG.commandTopic;
-        mqttClient.send(message);
-        console.log("Published MQTT Command:", payload);
-      } else {
-        console.warn("Cannot publish, MQTT client disconnected.");
-      }
-    }
+            mqttClient.onConnectionLost = () => { updateStatusBadges(false); setTimeout(connectMQTT, 5000); };
+            mqttClient.onMessageArrived = (msg) => { handleIncomingTelemetry(msg.destinationName, msg.payloadString); };
 
-    function updateStatusBadges(isConnected) {
-      const brokerPill = document.getElementById("brokerPill");
-      const espPill = document.getElementById("espPill");
+            mqttClient.connect({
+                useSSL: true, userName: MQTT_CONFIG.username, password: MQTT_CONFIG.password,
+                onSuccess: () => {
+                    updateStatusBadges(true);
+                    mqttClient.subscribe(MQTT_CONFIG.statusTopic);
+                    publishCommand("GET_STATUS");
+                },
+                onFailure: () => { updateStatusBadges(false); setTimeout(connectMQTT, 5000); }
+            });
+        }
 
-      if (isConnected) {
-        brokerPill.className = "status-pill connected";
-        brokerPill.innerText = "CONNECTED";
-        espPill.className = "status-pill online";
-        espPill.innerText = "ONLINE";
-      } else {
-        brokerPill.className = "status-pill offline";
-        brokerPill.innerText = "DISCONNECTED";
-        espPill.className = "status-pill offline";
-        espPill.innerText = "OFFLINE";
-      }
-    }
-
-    /* Telemetry Handler */
-    function handleIncomingTelemetry(topic, rawPayload) {
-      if (!rawPayload) return;
-      const payload = rawPayload.trim().toUpperCase();
-      console.log("Received Telemetry:", payload);
-
-      const timeNow = new Date().toLocaleTimeString();
-
-      if (payload === "MOTOR_ON") {
-        systemState.motorState = "ON";
-        updateMotorUI(true);
-      } else if (payload === "MOTOR_OFF") {
-        systemState.motorState = "OFF";
-        updateMotorUI(false);
-      } else if (payload.startsWith("VALVE")) {
-        const match = payload.match(/VALVE(\d)_(ON|OFF)/);
-        if (match) {
-          const vNum = parseInt(match[1]);
-          const state = match[2];
-
-          if (state === "ON") {
-            systemState.valves[vNum].state = "OPEN";
-            systemState.valves[vNum].startTime = new Date();
-            systemState.activeValve = vNum;
-            document.getElementById(`valveLast${vNum}`).innerText = `Opened at ${timeNow}`;
-          } else {
-            systemState.valves[vNum].state = "CLOSED";
-            if (systemState.valves[vNum].startTime) {
-              const runSec = Math.round((new Date() - systemState.valves[vNum].startTime) / 1000);
-              recordValveLog(vNum, systemState.valves[vNum].startTime, new Date(), runSec);
-              systemState.valves[vNum].startTime = null;
+        function publishCommand(payload) {
+            if (mqttClient && mqttClient.isConnected()) {
+                const msg = new Paho.MQTT.Message(payload);
+                msg.destinationName = MQTT_CONFIG.commandTopic;
+                mqttClient.send(msg);
             }
-            if (systemState.activeValve === vNum) systemState.activeValve = null;
-            document.getElementById(`valveLast${vNum}`).innerText = `Closed at ${timeNow}`;
-          }
-          updateValveUI(vNum);
         }
-      }
-    }
 
-    /* Motor UI & Dynamic Banner Update */
-    function updateMotorUI(isOn) {
-      const badge = document.getElementById("motorStateBadge");
-      const banner = document.getElementById("motorModeBanner");
-      const bannerText = document.getElementById("motorModeBannerText");
-
-      if (isOn) {
-        badge.className = "state-badge on";
-        badge.innerHTML = '<i class="fa-solid fa-power-off"></i> ON';
-
-        if (systemState.currentMode === "PERIODIC") {
-          banner.className = "mode-banner running-periodic";
-          bannerText.innerHTML = "<b>Motor status:</b> Running in <b>PERIODIC MODE</b>";
-        } else {
-          banner.className = "mode-banner running-manual";
-          bannerText.innerHTML = "<b>Motor status:</b> Running in <b>MANUAL MODE</b>";
+        function updateStatusBadges(isConnected) {
+            const b = document.getElementById("brokerPill");
+            const e = document.getElementById("espPill");
+            if (isConnected) {
+                b.className = "status-pill connected"; b.innerText = "CONNECTED";
+                e.className = "status-pill online"; e.innerText = "ONLINE";
+            } else {
+                b.className = "status-pill offline"; b.innerText = "DISCONNECTED";
+                e.className = "status-pill offline"; e.innerText = "OFFLINE";
+            }
         }
-      } else {
-        badge.className = "state-badge off";
-        badge.innerHTML = '<i class="fa-solid fa-power-off"></i> OFF';
-        document.getElementById("motorRemainingTime").innerText = "00:00";
-        document.getElementById("motorActiveValveText").innerHTML = '<i class="fa-solid fa-hourglass-half"></i> Standby';
-        
-        banner.className = "mode-banner";
-        bannerText.innerText = "Motor Standby • Select Manual or Periodic Mode";
-        systemState.currentMode = null;
-        clearInterval(mainCountdownInterval);
-      }
-    }
 
-    function updateValveUI(vNum) {
-      const badge = document.getElementById(`valveBadge${vNum}`);
-      const tile = document.getElementById(`valveTile${vNum}`);
-      const modalBadge = document.getElementById(`modalVBadge${vNum}`);
-      const modalLog = document.getElementById(`modalVLog${vNum}`);
-      
-      const isOpen = systemState.valves[vNum].state === "OPEN";
+        function handleIncomingTelemetry(topic, rawPayload) {
+            if (!rawPayload) return;
+            const payload = rawPayload.trim().toUpperCase();
+            const timeNow = new Date().toLocaleTimeString();
 
-      if (isOpen) {
-        badge.className = "valve-status-badge open";
-        badge.innerText = "OPEN";
-        tile.classList.add("active");
-        modalBadge.className = "valve-status-badge open";
-        modalBadge.innerText = "OPEN";
-      } else {
-        badge.className = "valve-status-badge closed";
-        badge.innerText = "CLOSED";
-        tile.classList.remove("active");
-        modalBadge.className = "valve-status-badge closed";
-        modalBadge.innerText = "CLOSED";
-      }
+            if (payload === "MOTOR_ON") {
+                systemState.motorState = "ON"; updateMotorUI(true);
+            } else if (payload === "MOTOR_OFF") {
+                systemState.motorState = "OFF"; updateMotorUI(false);
+            } else if (payload.startsWith("VALVE")) {
+                const match = payload.match(/VALVE(\d)_(ON|OFF)/);
+                if (match) {
+                    const vNum = parseInt(match[1]);
+                    const state = match[2];
 
-      modalLog.innerText = document.getElementById(`valveLast${vNum}`).innerText;
-    }
-
-    /* Interlocked Switching Logic */
-    function switchActiveValveInterlocked(newValveNum, callback) {
-      const oldValveNum = systemState.activeValve;
-
-      if (oldValveNum && oldValveNum !== newValveNum) {
-        publishCommand(`VALVE${newValveNum}_ON`);
-        setTimeout(() => {
-          publishCommand(`VALVE${oldValveNum}_OFF`);
-          if (callback) callback();
-        }, 1000);
-      } else {
-        publishCommand(`VALVE${newValveNum}_ON`);
-        if (callback) callback();
-      }
-    }
-
-    /* MANUAL MODE */
-    function startManualMode() {
-      const vNum = parseInt(document.getElementById("manualValveSelect").value);
-      const durationSec = parseInt(document.getElementById("manualDurationInput").value);
-
-      closeModal("manualModeModal");
-
-      systemState.currentMode = "MANUAL";
-      systemState.motorSessionStartTimestamp = new Date();
-      document.getElementById("motorStartTime").innerText = systemState.motorSessionStartTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById("motorStartDate").innerText = systemState.motorSessionStartTimestamp.toLocaleDateString();
-
-      publishCommand("MOTOR_ON");
-
-      switchActiveValveInterlocked(vNum, () => {
-        startCountdownTimer(durationSec, () => {
-          triggerMotorShutdown();
-        });
-      });
-    }
-
-    /* PERIODIC MODE */
-    function startPeriodicMode() {
-      const activeSequence = [];
-      for (let i = 1; i <= 4; i++) {
-        if (periodicSettings.valves[i].enabled) {
-          activeSequence.push({
-            valve: i,
-            duration: periodicSettings.valves[i].duration
-          });
+                    if (state === "ON") {
+                        systemState.valves[vNum].state = "OPEN";
+                        systemState.valves[vNum].startTime = new Date();
+                        systemState.activeValve = vNum;
+                        document.getElementById(`modalVLog${vNum}`).innerText = `Opened at ${timeNow}`;
+                    } else {
+                        systemState.valves[vNum].state = "CLOSED";
+                        if (systemState.valves[vNum].startTime) {
+                            const runSec = Math.round((new Date() - systemState.valves[vNum].startTime) / 1000);
+                            recordValveMatrixLog(vNum, systemState.valves[vNum].startTime, runSec);
+                            systemState.valves[vNum].startTime = null;
+                        }
+                        if (systemState.activeValve === vNum) systemState.activeValve = null;
+                        document.getElementById(`modalVLog${vNum}`).innerText = `Closed at ${timeNow}`;
+                    }
+                    renderActiveValveDisplay();
+                    updateModalValveBadges(vNum);
+                }
+            }
         }
-      }
 
-      if (activeSequence.length === 0) {
-        alert("Please enable at least one valve in Periodic Settings!");
-        openModal("settingsModal");
-        return;
-      }
+        function renderActiveValveDisplay() {
+            const container = document.getElementById("activeValveContainer");
+            const activeV = systemState.activeValve;
 
-      systemState.currentMode = "PERIODIC";
-      systemState.motorSessionStartTimestamp = new Date();
-      document.getElementById("motorStartTime").innerText = systemState.motorSessionStartTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      document.getElementById("motorStartDate").innerText = systemState.motorSessionStartTimestamp.toLocaleDateString();
-
-      publishCommand("MOTOR_ON");
-      executePeriodicStep(activeSequence, 0);
-    }
-
-    function executePeriodicStep(sequence, index) {
-      if (index >= sequence.length) {
-        triggerMotorShutdown();
-        return;
-      }
-
-      const step = sequence[index];
-      
-      switchActiveValveInterlocked(step.valve, () => {
-        startCountdownTimer(step.duration, () => {
-          executePeriodicStep(sequence, index + 1);
-        });
-      });
-    }
-
-    /* Countdown Display Helper */
-    function startCountdownTimer(seconds, onComplete) {
-      clearInterval(mainCountdownInterval);
-      currentCountdownSec = seconds;
-
-      const updateDisplay = () => {
-        const m = Math.floor(currentCountdownSec / 60).toString().padStart(2, '0');
-        const s = (currentCountdownSec % 60).toString().padStart(2, '0');
-        document.getElementById("motorRemainingTime").innerText = `${m}:${s}`;
-        document.getElementById("motorActiveValveText").innerHTML = `<i class="fa-solid fa-hourglass-half"></i> Active: Valve ${systemState.activeValve || '--'}`;
-
-        if (systemState.activeValve) {
-          document.getElementById(`valveRem${systemState.activeValve}`).innerText = `${m}:${s}`;
+            if (activeV && systemState.valves[activeV].state === "OPEN") {
+                container.innerHTML = `
+          <div class="active-valve-container">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-weight: 700; font-size: 16px;">Valve ${activeV}</span>
+              <span class="status-pill online">ACTIVE / OPEN</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted);">
+              <span>Remaining Run Time:</span>
+              <span id="activeValveRemainingText" style="font-weight: 700; color: #047857; font-family: monospace;">00:00</span>
+            </div>
+          </div>`;
+            } else {
+                container.innerHTML = `
+          <div class="standby-valve-tile">
+            <i class="fa-solid fa-power-off" style="font-size: 20px; margin-bottom: 6px; display: block;"></i>
+            All field valves are currently CLOSED ${systemState.currentMode === 'PERIODIC' ? '(Resting)' : '(Standby)'}
+          </div>`;
+            }
         }
-      };
 
-      updateDisplay();
-
-      mainCountdownInterval = setInterval(() => {
-        currentCountdownSec--;
-        if (currentCountdownSec <= 0) {
-          clearInterval(mainCountdownInterval);
-          if (onComplete) onComplete();
-        } else {
-          updateDisplay();
+        function updateModalValveBadges(vNum) {
+            const modalBadge = document.getElementById(`modalVBadge${vNum}`);
+            if (systemState.valves[vNum].state === "OPEN") {
+                modalBadge.className = "status-pill online"; modalBadge.innerText = "OPEN";
+            } else {
+                modalBadge.className = "status-pill offline"; modalBadge.innerText = "CLOSED";
+            }
         }
-      }, 1000);
-    }
 
-    /* Motor Shutdown with 5s Delay */
-    function triggerMotorShutdown() {
-      clearInterval(mainCountdownInterval);
-      publishCommand("MOTOR_OFF");
+        function updateMotorUI(isOn) {
+            const badge = document.getElementById("motorStateBadge");
+            const bannerText = document.getElementById("motorModeBannerText");
 
-      const currentV = systemState.activeValve;
+            if (isOn) {
+                badge.className = "state-badge on"; badge.innerHTML = '<i class="fa-solid fa-power-off"></i> ON';
+                bannerText.innerHTML = `Motor Running in <b>${systemState.currentMode || 'MANUAL'} MODE</b>`;
+            } else {
+                badge.className = "state-badge off"; badge.innerHTML = '<i class="fa-solid fa-power-off"></i> OFF';
+                if (systemState.currentMode !== "PERIODIC") {
+                    document.getElementById("motorRemainingTime").innerText = "00:00";
+                    document.getElementById("motorActiveValveText").innerText = "No Active Valve";
+                    bannerText.innerText = "Motor Standby • Select Manual or Periodic Mode";
+                    document.getElementById("nextValveSectionCard").style.display = "none";
+                    systemState.currentMode = null;
+                    clearInterval(mainCountdownInterval);
+                } else {
+                    bannerText.innerHTML = `Periodic Mode Running (<b>OFF Delay Rest</b>)`;
+                }
+                renderActiveValveDisplay();
+            }
+        }
 
-      if (currentV) {
-        let delayLeft = 5;
-        document.getElementById("motorActiveValveText").innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Pressure Bleed: Valve ${currentV} OFF in 5s...`;
-        
-        const delayTimer = setInterval(() => {
-          delayLeft--;
-          if (delayLeft > 0) {
-            document.getElementById("motorActiveValveText").innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> Pressure Bleed: Valve ${currentV} OFF in ${delayLeft}s...`;
-          } else {
-            clearInterval(delayTimer);
-            publishCommand(`VALVE${currentV}_OFF`);
+        function switchActiveValveInterlocked(newValveNum, callback) {
+            const oldV = systemState.activeValve;
+            if (oldV && oldV !== newValveNum) {
+                publishCommand(`VALVE${newValveNum}_ON`);
+                setTimeout(() => {
+                    publishCommand(`VALVE${oldV}_OFF`);
+                    if (callback) callback();
+                }, 1000);
+            } else {
+                publishCommand(`VALVE${newValveNum}_ON`);
+                if (callback) callback();
+            }
+        }
+
+        /* RADIAL CLOCK PICKER + MANUAL INPUT */
+        function openClockPicker(targetObj) {
+            activeClockTarget = targetObj;
+            if (targetObj === 'manualTimer') {
+                tempPicker = { ...manualTimer };
+            } else {
+                tempPicker = { hr: targetObj.hr, min: targetObj.min };
+            }
+            switchClockMode('HR');
+            openModal('clockPickerModal');
+        }
+
+        function handleManualClockInput(type, val) {
+            let num = parseInt(val) || 0;
+            if (type === 'HR') {
+                num = Math.max(0, Math.min(23, num));
+                tempPicker.hr = num;
+            } else {
+                num = Math.max(0, Math.min(59, num));
+                tempPicker.min = num;
+            }
+            updateClockHand();
+        }
+
+        function switchClockMode(mode) {
+            clockMode = mode;
+            const hrInput = document.getElementById("clockHrInput");
+            const minInput = document.getElementById("clockMinInput");
+
+            if (mode === 'HR') {
+                hrInput.className = "clock-digit-input active";
+                minInput.className = "clock-digit-input";
+            } else {
+                hrInput.className = "clock-digit-input";
+                minInput.className = "clock-digit-input active";
+            }
+
+            hrInput.value = String(tempPicker.hr).padStart(2, '0');
+            minInput.value = String(tempPicker.min).padStart(2, '0');
+            renderClockDial();
+        }
+
+        function renderClockDial() {
+            const dial = document.getElementById("clockDialFace");
+            dial.querySelectorAll('.theme-clock-num').forEach(n => n.remove());
+
+            const count = 12;
+            const radius = 80;
+
+            for (let i = 1; i <= count; i++) {
+                const val = clockMode === 'HR' ? i : (i === 12 ? 0 : i * 5);
+                const angle = (i * 30) * (Math.PI / 180);
+                const x = Math.sin(angle) * radius;
+                const y = -Math.cos(angle) * radius;
+
+                const numDiv = document.createElement("div");
+                numDiv.className = "theme-clock-num";
+                numDiv.innerText = val;
+                numDiv.style.transform = `translate(${x}px, ${y}px)`;
+                numDiv.onclick = () => selectClockValue(val);
+                dial.appendChild(numDiv);
+            }
+
+            updateClockHand();
+        }
+
+        function selectClockValue(val) {
+            if (clockMode === 'HR') {
+                tempPicker.hr = val;
+                document.getElementById("clockHrInput").value = String(val).padStart(2, '0');
+                switchClockMode('MIN');
+            } else {
+                tempPicker.min = val;
+                document.getElementById("clockMinInput").value = String(val).padStart(2, '0');
+                switchClockMode('MIN');
+            }
+        }
+
+        function updateClockHand() {
+            const currentVal = clockMode === 'HR' ? tempPicker.hr : tempPicker.min;
+            const deg = clockMode === 'HR' ? (currentVal % 12) * 30 : (currentVal / 5) * 30;
+
+            document.getElementById("clockPointerHand").style.transform = `rotate(${deg}deg)`;
+            document.getElementById("clockPointerHead").innerText = currentVal;
+            document.getElementById("clockPointerHead").style.transform = `rotate(-${deg}deg)`;
+        }
+
+        function confirmClockPicker() {
+            if (activeClockTarget === 'manualTimer') {
+                manualTimer = { ...tempPicker };
+                document.getElementById("manualTimerText").innerText = `${String(manualTimer.hr).padStart(2, '0')} Hours : ${String(manualTimer.min).padStart(2, '0')} Mins`;
+            } else if (typeof activeClockTarget === 'object') {
+                activeClockTarget.hr = tempPicker.hr;
+                activeClockTarget.min = tempPicker.min;
+                renderPeriodicSequenceCards();
+            }
+            closeModal('clockPickerModal');
+        }
+
+        /* DRAG & DROP SEQUENCE ENGINE */
+        function addValveCard() {
+            if (periodicSequence.length >= 10) return alert("Maximum sequence entries reached!");
+            periodicSequence.push({ type: 'VALVE', valveNum: 1, hr: 0, min: 30 });
+            renderPeriodicSequenceCards();
+        }
+
+        function addOffTimerCard() {
+            if (periodicSequence.length >= 10) return alert("Maximum sequence entries reached!");
+            periodicSequence.push({ type: 'OFF_TIMER', hr: 0, min: 5 });
+            renderPeriodicSequenceCards();
+        }
+
+        function removeSequenceCard(idx) {
+            periodicSequence.splice(idx, 1);
+            renderPeriodicSequenceCards();
+        }
+
+        function renderPeriodicSequenceCards() {
+            const container = document.getElementById("dynamicPeriodicList");
+            if (periodicSequence.length === 0) {
+                container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 12px; font-size: 13px;">No items configured. Click "+ Add Valve" or "+ Add OFF Timer" above.</div>`;
+                updatePeriodicCalculations();
+                return;
+            }
+
+            container.innerHTML = periodicSequence.map((item, idx) => {
+                const isValve = item.type === 'VALVE';
+                return `
+          <div class="dynamic-item-card ${!isValve ? 'off-timer-card' : ''}" 
+               draggable="true" 
+               data-index="${idx}"
+               ondragstart="handleDragStart(event, ${idx})"
+               ondragover="handleDragOver(event)"
+               ondrop="handleDrop(event, ${idx})"
+               ondragend="handleDragEnd(event)">
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <div class="drag-handle">
+                <i class="fa-solid fa-grip-vertical"></i>
+                <span style="font-weight: 700; font-size: 13px; color: ${isValve ? '#047857' : '#0284c7'};">
+                  ${isValve ? `<i class="fa-solid fa-faucet-drip"></i> Valve Sequence #${idx + 1}` : `<i class="fa-solid fa-hourglass-start"></i> OFF Delay Rest #${idx + 1}`}
+                </span>
+              </div>
+              <button class="btn btn-danger" style="font-size: 11px; padding: 4px 8px;" onclick="removeSequenceCard(${idx})">
+                <i class="fa-solid fa-trash"></i>
+              </button>
+            </div>
+
+            ${isValve ? `
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size: 12px; font-weight: 600;">Select Valve:</label>
+                <select class="form-control" onchange="periodicSequence[${idx}].valveNum = parseInt(this.value)">
+                  <option value="1" ${item.valveNum === 1 ? 'selected' : ''}>Valve 1</option>
+                  <option value="2" ${item.valveNum === 2 ? 'selected' : ''}>Valve 2</option>
+                  <option value="3" ${item.valveNum === 3 ? 'selected' : ''}>Valve 3</option>
+                  <option value="4" ${item.valveNum === 4 ? 'selected' : ''}>Valve 4</option>
+                </select>
+              </div>
+            ` : ''}
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label style="font-size: 12px; font-weight: 600;">${isValve ? 'Valve ON Duration:' : 'Rest / Delay Duration:'}</label>
+              <div class="time-display-trigger" onclick="openClockPicker(periodicSequence[${idx}])">
+                <span><i class="fa-regular fa-clock" style="color: ${isValve ? '#047857' : '#0284c7'};"></i> ${String(item.hr).padStart(2, '0')} Hr : ${String(item.min).padStart(2, '0')} Min</span>
+                <i class="fa-solid fa-pen" style="color: var(--text-muted);"></i>
+              </div>
+            </div>
+          </div>`;
+            }).join('');
+
+            updatePeriodicCalculations();
+        }
+
+        function handleDragStart(e, index) {
+            dragSrcIndex = index;
+            e.target.classList.add("dragging");
+            e.dataTransfer.effectAllowed = "move";
+        }
+
+        function handleDragOver(e) {
+            if (e.preventDefault) e.preventDefault();
+            return false;
+        }
+
+        function handleDrop(e, targetIndex) {
+            if (e.stopPropagation) e.stopPropagation();
+            if (dragSrcIndex !== null && dragSrcIndex !== targetIndex) {
+                const movedItem = periodicSequence.splice(dragSrcIndex, 1)[0];
+                periodicSequence.splice(targetIndex, 0, movedItem);
+                renderPeriodicSequenceCards();
+            }
+            return false;
+        }
+
+        function handleDragEnd(e) {
+            e.target.classList.remove("dragging");
+            dragSrcIndex = null;
+        }
+
+        function updatePeriodicCalculations() {
+            let totalSec = 0;
+            periodicSequence.forEach(item => {
+                totalSec += (item.hr * 3600) + (item.min * 60);
+            });
+            const m = Math.floor(totalSec / 60);
+            const s = totalSec % 60;
+            document.getElementById("periodicCalculationDisplay").innerText = `Target Cycle Duration: ${m}m ${s}s | Total Safe Cutoff (+5s): ${m}m ${s + 5}s`;
+        }
+
+        function savePeriodicSettings() {
+            if (periodicSequence.length === 0) return alert("Please add at least ONE sequence card!");
+            closeModal("settingsModal");
+        }
+
+        function startManualMode() {
+            const vNum = parseInt(document.getElementById("manualValveSelect").value);
+            const totalSec = (manualTimer.hr * 3600) + (manualTimer.min * 60);
+
+            closeModal("manualModeModal");
+            systemState.currentMode = "MANUAL";
+            systemState.motorSessionStartTimestamp = new Date();
+            document.getElementById("motorStartTime").innerText = systemState.motorSessionStartTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            publishCommand("MOTOR_ON");
+            switchActiveValveInterlocked(vNum, () => {
+                startCountdownTimer(totalSec, () => triggerMotorShutdown());
+            });
+        }
+
+        function startPeriodicMode() {
+            if (periodicSequence.length === 0) return openModal("settingsModal");
+
+            systemState.currentMode = "PERIODIC";
+            systemState.motorSessionStartTimestamp = new Date();
+            document.getElementById("motorStartTime").innerText = systemState.motorSessionStartTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            executePeriodicSequenceStep(0);
+        }
+
+        function executePeriodicSequenceStep(index) {
+            if (index >= periodicSequence.length) return triggerMotorShutdown();
+
+            const currentItem = periodicSequence[index];
+            const durationSec = (currentItem.hr * 3600) + (currentItem.min * 60);
+
+            // Next Scheduled Card Display
+            const nextCard = document.getElementById("nextValveSectionCard");
+            if (index + 1 < periodicSequence.length) {
+                const nextItem = periodicSequence[index + 1];
+                nextCard.style.display = "flex";
+                document.getElementById("nextValveName").innerText = nextItem.type === 'VALVE' ? `Valve ${nextItem.valveNum}` : `OFF Delay Rest`;
+            } else {
+                nextCard.style.display = "none";
+            }
+
+            if (currentItem.type === 'VALVE') {
+                // VALVE ON PHASE: Turn motor ON and activate target valve
+                publishCommand("MOTOR_ON");
+                switchActiveValveInterlocked(currentItem.valveNum, () => {
+                    startCountdownTimer(durationSec, () => executePeriodicSequenceStep(index + 1));
+                });
+            } else {
+                // OFF TIMER PHASE: Turn motor OFF and turn ALL valves OFF
+                publishCommand("MOTOR_OFF");
+                publishCommand("VALVE1_OFF");
+                publishCommand("VALVE2_OFF");
+                publishCommand("VALVE3_OFF");
+                publishCommand("VALVE4_OFF");
+
+                systemState.activeValve = null;
+                renderActiveValveDisplay();
+                updateMotorUI(false);
+
+                startCountdownTimer(durationSec, () => executePeriodicSequenceStep(index + 1));
+            }
+        }
+
+        function startCountdownTimer(seconds, onComplete) {
+            clearInterval(mainCountdownInterval);
+            currentCountdownSec = seconds;
+
+            const updateDisplay = () => {
+                const m = Math.floor(currentCountdownSec / 60).toString().padStart(2, '0');
+                const s = (currentCountdownSec % 60).toString().padStart(2, '0');
+
+                document.getElementById("motorRemainingTime").innerText = `${m}:${s}`;
+                document.getElementById("motorActiveValveText").innerText = systemState.activeValve ? `Active: Valve ${systemState.activeValve}` : "Resting (OFF Delay)";
+                document.getElementById("nextValveCountdown").innerText = `Starts in ${m}:${s}`;
+
+                const actValText = document.getElementById("activeValveRemainingText");
+                if (actValText) actValText.innerText = `${m}:${s}`;
+            };
+
+            updateDisplay();
+            mainCountdownInterval = setInterval(() => {
+                currentCountdownSec--;
+                if (currentCountdownSec <= 0) {
+                    clearInterval(mainCountdownInterval);
+                    if (onComplete) onComplete();
+                } else { updateDisplay(); }
+            }, 1000);
+        }
+
+        function triggerMotorShutdown() {
+            clearInterval(mainCountdownInterval);
+            publishCommand("MOTOR_OFF");
+            publishCommand("VALVE1_OFF");
+            publishCommand("VALVE2_OFF");
+            publishCommand("VALVE3_OFF");
+            publishCommand("VALVE4_OFF");
+
+            systemState.activeValve = null;
+            systemState.currentMode = null;
             recordMotorLogSession();
-          }
-        }, 1000);
-      } else {
-        recordMotorLogSession();
-      }
-    }
-
-    /* Logging Utilities */
-    function recordMotorLogSession() {
-      if (!systemState.motorSessionStartTimestamp) return;
-
-      const endTime = new Date();
-      const durationSec = Math.round((endTime - systemState.motorSessionStartTimestamp) / 1000);
-      
-      const logEntry = {
-        date: systemState.motorSessionStartTimestamp.toLocaleDateString(),
-        startTime: systemState.motorSessionStartTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        endTime: endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        duration: `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`,
-        mode: systemState.currentMode || "MANUAL"
-      };
-
-      motorLogs.unshift(logEntry);
-      renderMotorLogTable();
-      systemState.motorSessionStartTimestamp = null;
-    }
-
-    function recordValveLog(vNum, start, end, runSec) {
-      const logEntry = {
-        date: start.toLocaleDateString(),
-        valve: `Valve ${vNum}`,
-        startTime: start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        endTime: end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        runtime: `${Math.floor(runSec / 60)}m ${runSec % 60}s`
-      };
-
-      valveLogs.unshift(logEntry);
-      renderValveLogTable();
-    }
-
-    function renderMotorLogTable() {
-      const tbody = document.getElementById("motorLogTableBody");
-      if (motorLogs.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">No recent motor history recorded.</td></tr>';
-        return;
-      }
-
-      tbody.innerHTML = motorLogs.map(log => `
-        <tr>
-          <td>${log.date}</td>
-          <td>${log.startTime}</td>
-          <td>${log.endTime}</td>
-          <td><b>${log.duration}</b></td>
-          <td><span style="background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 700;">${log.mode}</span></td>
-        </tr>
-      `).join('');
-    }
-
-    function renderValveLogTable() {
-      const tbody = document.getElementById("valveLogTableBody");
-      const selectedDate = document.getElementById("valveDateFilter").value;
-
-      let filtered = valveLogs;
-      if (selectedDate !== "ALL") {
-        filtered = valveLogs.filter(log => log.date === selectedDate);
-      }
-
-      if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">No valve activations recorded for the selected date.</td></tr>';
-        return;
-      }
-
-      // Render with Date FIRST, Valve SECOND
-      tbody.innerHTML = filtered.map(log => `
-        <tr>
-          <td><b>${log.date}</b></td>
-          <td>${log.valve}</td>
-          <td>${log.startTime}</td>
-          <td>${log.endTime}</td>
-          <td><b>${log.runtime}</b></td>
-        </tr>
-      `).join('');
-    }
-
-    /* Settings Logic */
-    function updatePeriodicCalculations() {
-      let sumDurations = 0;
-
-      for (let i = 1; i <= 4; i++) {
-        const en = document.getElementById(`pValveEn${i}`).checked;
-        const durInput = document.getElementById(`pValveDur${i}`);
-        
-        if (en) {
-          let val = parseInt(durInput.value) || 1;
-          sumDurations += val;
+            updateMotorUI(false);
         }
-      }
 
-      const safeCutoff = sumDurations + 5;
-      document.getElementById("periodicCalculationDisplay").innerText = 
-        `Target Motor Run: ${sumDurations}s | Safe Cutoff (+5s buffer): ${safeCutoff}s`;
-    }
+        function recordMotorLogSession() {
+            if (!systemState.motorSessionStartTimestamp) return;
+            const endTime = new Date();
+            const durationSec = Math.round((endTime - systemState.motorSessionStartTimestamp) / 1000);
 
-    function savePeriodicSettings() {
-      let anyEnabled = false;
-      for (let i = 1; i <= 4; i++) {
-        const en = document.getElementById(`pValveEn${i}`).checked;
-        const dur = parseInt(document.getElementById(`pValveDur${i}`).value) || 10;
-        periodicSettings.valves[i] = { enabled: en, duration: dur };
-        if (en) anyEnabled = true;
-      }
+            motorLogs.unshift({
+                date: systemState.motorSessionStartTimestamp.toLocaleDateString(),
+                startTime: systemState.motorSessionStartTimestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                endTime: endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                duration: `${Math.floor(durationSec / 60)}m ${durationSec % 60}s`,
+                mode: systemState.currentMode || "MANUAL"
+            });
 
-      if (!anyEnabled) {
-        alert("Validation Error: At least ONE valve must be enabled!");
-        return;
-      }
+            renderMotorLogTable();
+            systemState.motorSessionStartTimestamp = null;
+        }
 
-      localStorage.setItem("SPD_PERIODIC_SETTINGS", JSON.stringify(periodicSettings));
-      closeModal("settingsModal");
-    }
+        function recordValveMatrixLog(vNum, startObj, runSec) {
+            const dateKey = startObj.toLocaleDateString();
+            if (!valveDailyMatrix[dateKey]) valveDailyMatrix[dateKey] = { 1: 0, 2: 0, 3: 0, 4: 0 };
+            valveDailyMatrix[dateKey][vNum] += runSec;
+            renderValveMatrixTable();
+        }
 
-    function loadPeriodicSettingsFromStorage() {
-      const stored = localStorage.getItem("SPD_PERIODIC_SETTINGS");
-      if (stored) {
-        try {
-          periodicSettings = JSON.parse(stored);
-          for (let i = 1; i <= 4; i++) {
-            document.getElementById(`pValveEn${i}`).checked = periodicSettings.valves[i].enabled;
-            document.getElementById(`pValveDur${i}`).value = periodicSettings.valves[i].duration;
-          }
-        } catch(e) { console.error("Failed loading settings from storage", e); }
-      }
-      updatePeriodicCalculations();
-    }
+        function renderMotorLogTable() {
+            const tbody = document.getElementById("motorLogTableBody");
+            if (motorLogs.length === 0) return tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: #9ca3af;">No recent motor history recorded.</td></tr>';
+            tbody.innerHTML = motorLogs.map(l => `<tr><td>${l.date}</td><td>${l.startTime}</td><td>${l.endTime}</td><td><b>${l.duration}</b></td><td><span class="status-pill online">${l.mode}</span></td></tr>`).join('');
+        }
 
-    /* Modal Navigation */
-    function openModal(id) {
-      document.getElementById(id).classList.add("active");
-    }
+        function renderValveMatrixTable() {
+            const tbody = document.getElementById("valveMatrixTableBody");
+            const dates = Object.keys(valveDailyMatrix);
+            if (dates.length === 0) return tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #9ca3af;">No valve activity recorded yet.</td></tr>';
 
-    function closeModal(id) {
-      document.getElementById(id).classList.remove("active");
-    }
+            const formatTime = (sec) => sec > 0 ? `${Math.floor(sec / 60)}m ${sec % 60}s` : '--';
 
-    function switchLogTab(tab) {
-      const motorBtn = document.getElementById("tabBtnMotor");
-      const valveBtn = document.getElementById("tabBtnValve");
-      const motorContent = document.getElementById("motorLogContent");
-      const valveContent = document.getElementById("valveLogContent");
+            tbody.innerHTML = dates.map(d => {
+                const row = valveDailyMatrix[d];
+                const dayTotalSec = (row[1] || 0) + (row[2] || 0) + (row[3] || 0) + (row[4] || 0);
+                return `<tr><td><b>${d}</b></td><td>${formatTime(row[1])}</td><td>${formatTime(row[2])}</td><td>${formatTime(row[3])}</td><td>${formatTime(row[4])}</td><td style="color: #047857; font-weight: 700;">${formatTime(dayTotalSec)}</td></tr>`;
+            }).join('');
+        }
 
-      if (tab === 'motor') {
-        motorBtn.classList.add("active");
-        valveBtn.classList.remove("active");
-        motorContent.style.display = "block";
-        valveContent.style.display = "none";
-      } else {
-        valveBtn.classList.add("active");
-        motorBtn.classList.remove("active");
-        valveContent.style.display = "block";
-        motorContent.style.display = "none";
-        renderValveLogTable();
-      }
-    }
-  </script>
+        function openModal(id) { document.getElementById(id).classList.add("active"); }
+        function closeModal(id) { document.getElementById(id).classList.remove("active"); }
+
+        function switchLogTab(tab) {
+            document.getElementById("tabBtnMotor").className = `tab-btn ${tab === 'motor' ? 'active' : ''}`;
+            document.getElementById("tabBtnValve").className = `tab-btn ${tab === 'valve' ? 'active' : ''}`;
+            document.getElementById("motorLogContent").style.display = tab === 'motor' ? 'block' : 'none';
+            document.getElementById("valveLogContent").style.display = tab === 'valve' ? 'block' : 'none';
+            if (tab === 'valve') renderValveMatrixTable();
+        }
+    </script>
 </body>
+
 </html>
